@@ -1337,7 +1337,6 @@ exports.Formats = [
 
 	{
 		section: "BD Tiers",
-		column: 2,
 	},
 	{
 		name: "[Gen 7] BD Theorymon New",
