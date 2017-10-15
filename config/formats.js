@@ -1334,12 +1334,15 @@ exports.Formats = [
 
 	// BD Tiers
 	///////////////////////////////////////////////////////////////////
-
+  
 	{
 		section: "BD Tiers",
-	},
+		column: 2,
+  }, 
 	{
 		name: "[Gen 7] BD Theorymon New",
+		section: "BD Tiers",
+		column: 2,
 
 		mod: 'bdnew',
 		searchShow: true,
