@@ -649,7 +649,7 @@ exports.Formats = [
 
 		mod: 'gen6',
 		ruleset: ['Pokemon', 'Standard', 'Team Preview', 'Swagger Clause', 'Baton Pass Clause'],
-		banlist: ['Uber', 'Shadow Tag', 'Soul Dew']
+		banlist: ['Uber', 'Shadow Tag', 'Soul Dew'],
 	},
 	{
 		name: "[Gen 6] Ubers",
@@ -1330,19 +1330,8 @@ exports.Formats = [
 		debug: true,
 		ruleset: ['Pokemon', 'HP Percentage Mod', 'Cancel Mod'],
 	},
-];
-
-	// BD Tiers
-	///////////////////////////////////////////////////////////////////
-  
-	{
-		section: "BD Tiers",
-		column: 2,
-  }, 
-	{
+          {
 		name: "[Gen 7] BD Theorymon New",
-		section: "BD Tiers",
-		column: 2,
 
 		mod: 'bdnew',
 		searchShow: true,
@@ -1362,5 +1351,4 @@ exports.Formats = [
 		  if (pokemon.baseTemplate.actualSpecies) this.add('-end', pokemon, pokemon.baseTemplate.actualSpecies, '[silent]');
 		},
 	},
-
-	},
+];
