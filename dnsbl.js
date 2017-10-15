@@ -16,7 +16,7 @@
 
 'use strict';
 
-const BLOCKLISTS = ['sbl.spamhaus.org', 'rbl.efnetrbl.org'];
+const BLOCKLISTS = [];
 
 const dns = require('dns');
 const FS = require('./fs');
