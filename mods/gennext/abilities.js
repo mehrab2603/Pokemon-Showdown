@@ -1,6 +1,7 @@
 'use strict';
 
-exports.BattleAbilities = {
+/**@type {{[k: string]: ModdedAbilityData}} */
+let BattleAbilities = {
 	"swiftswim": {
 		inherit: true,
 		onModifySpe: function (spe, pokemon) {
@@ -42,7 +43,7 @@ exports.BattleAbilities = {
 		onModifyMove: function (move) {
 			if (move.weather) {
 				let weather = move.weather;
-				move.weather = null;
+				move.weather = '';
 				move.onHit = function (target, source) {
 					this.setWeather(weather, source, this.getAbility('forecast'));
 					this.weatherData.duration = 0;
@@ -124,7 +125,7 @@ exports.BattleAbilities = {
 		},
 		onAfterDamage: function (damage, target, source, move) {
 			if (move && move.flags['contact'] && this.isWeather('hail')) {
-				if (this.random(10) < 3) {
+				if (this.randomChance(3, 10)) {
 					source.trySetStatus('frz', target);
 				}
 			}
@@ -170,8 +171,10 @@ exports.BattleAbilities = {
 		inherit: true,
 		onModifyMove: function (move) {
 			if (move.id === 'sunnyday') {
+				/**@type {string} */
+				// @ts-ignore
 				let weather = move.weather;
-				move.weather = null;
+				move.weather = '';
 				move.onHit = function (target, source) {
 					this.setWeather(weather, source, this.getAbility('flowergift'));
 					this.weatherData.duration = 0;
@@ -185,7 +188,7 @@ exports.BattleAbilities = {
 				if (pokemon.isActive && pokemon.speciesid === 'cherrim' && this.effectData.forme !== 'Sunshine') {
 					this.effectData.forme = 'Sunshine';
 					this.add('-formechange', pokemon, 'Cherrim-Sunshine', '[msg]');
-					this.boost({spd:1});
+					this.boost({spd: 1});
 				}
 			} else if (pokemon.isActive && pokemon.speciesid === 'cherrim' && this.effectData.forme) {
 				delete this.effectData.forme;
@@ -196,7 +199,7 @@ exports.BattleAbilities = {
 			onSwitchInPriority: 1,
 			onSwitchIn: function (target) {
 				if (!target.fainted) {
-					this.boost({spd:1}, target, target, this.getAbility('flowergift'));
+					this.boost({spd: 1}, target, target, this.getAbility('flowergift'));
 				}
 				target.side.removeSideCondition('flowergift');
 			},
@@ -294,7 +297,9 @@ exports.BattleAbilities = {
 		inherit: true,
 		onBoost: function (boost, target, source) {
 			for (let i in boost) {
+				// @ts-ignore
 				if (boost[i] < 0) {
+					// @ts-ignore
 					delete boost[i];
 					this.add("-message", target.name + "'s stats were not lowered! (placeholder)");
 				}
@@ -306,7 +311,9 @@ exports.BattleAbilities = {
 		inherit: true,
 		onBoost: function (boost, target, source) {
 			for (let i in boost) {
+				// @ts-ignore
 				if (boost[i] < 0) {
+					// @ts-ignore
 					delete boost[i];
 					this.add("-message", target.name + "'s stats were not lowered! (placeholder)");
 				}
@@ -317,7 +324,7 @@ exports.BattleAbilities = {
 	"rockhead": {
 		inherit: true,
 		onDamage: function (damage, target, source, effect) {
-			if (effect && effect.id in {lifeorb: 1, recoil: 1}) return false;
+			if (effect && ['lifeorb', 'recoil'].includes(effect.id)) return false;
 		},
 		desc: "This Pokemon does not take recoil damage besides Struggle, and crash damage.",
 		shortDesc: "This Pokemon does not take recoil damage besides Struggle/crash damage.",
@@ -328,18 +335,17 @@ exports.BattleAbilities = {
 			if (pokemon.template.baseSpecies === 'Genesect') {
 				if (!pokemon.getItem().onDrive) return;
 			}
-			let foeactive = pokemon.side.foe.active;
 			let totaldef = 0;
 			let totalspd = 0;
-			for (let i = 0; i < foeactive.length; i++) {
-				if (!foeactive[i] || foeactive[i].fainted) continue;
-				totaldef += foeactive[i].stats.def;
-				totalspd += foeactive[i].stats.spd;
+			for (const foe of pokemon.side.foe.active) {
+				if (!foe || foe.fainted) continue;
+				totaldef += foe.stats.def;
+				totalspd += foe.stats.spd;
 			}
 			if (totaldef && totaldef >= totalspd) {
-				this.boost({spa:1});
+				this.boost({spa: 1});
 			} else if (totalspd) {
-				this.boost({atk:1});
+				this.boost({atk: 1});
 			}
 		},
 		desc: "On switch-in, this Pokemon's Attack or Special Attack is raised by 1 stage based on the weaker combined defensive stat of all opposing Pokemon. Attack is raised if their Defense is lower, and Special Attack is raised if their Special Defense is the same or lower. If the user is a Genesect, this will not have effect unless it holds a Drive.",
@@ -463,8 +469,8 @@ exports.BattleAbilities = {
 			if (move.category !== "Status") {
 				this.debug('Adding Stench flinch');
 				if (!move.secondaries) move.secondaries = [];
-				for (let i = 0; i < move.secondaries.length; i++) {
-					if (move.secondaries[i].volatileStatus === 'flinch') return;
+				for (const secondary of move.secondaries) {
+					if (secondary.volatileStatus === 'flinch') return;
 				}
 				move.secondaries.push({
 					chance: 40,
@@ -505,6 +511,7 @@ exports.BattleAbilities = {
 			if (!pokemon.gluttonyFlag && !pokemon.item && this.getItem(pokemon.lastItem).isBerry) {
 				pokemon.gluttonyFlag = true;
 				pokemon.setItem(pokemon.lastItem);
+				pokemon.lastItem = '';
 				this.add("-item", pokemon, pokemon.item, '[from] ability: Gluttony');
 			}
 		},
@@ -579,9 +586,8 @@ exports.BattleAbilities = {
 			this.add('-start', target, 'move: Imprison');
 		},
 		onFoeDisableMove: function (pokemon) {
-			let foeMoves = this.effectData.target.moveset;
-			for (let f = 0; f < foeMoves.length; f++) {
-				pokemon.disableMove(foeMoves[f].id, 'hidden');
+			for (const moveSlot of this.effectData.target.moveSlots) {
+				pokemon.disableMove(moveSlot.id, 'hidden');
 			}
 			pokemon.maybeDisabled = true;
 		},
@@ -598,7 +604,7 @@ exports.BattleAbilities = {
 		onResidualPriority: -1,
 		onResidual: function (pokemon) {
 			if (pokemon.activeTurns && !pokemon.volatiles.stall) {
-				this.boost({spe:1});
+				this.boost({spe: 1});
 			}
 		},
 		desc: "This Pokemon's Speed is raised by 1 stage at the end of each full turn it has been on the field. This ability does not activate on turns Protect, Detect, Endure, etc are used.",
@@ -606,7 +612,7 @@ exports.BattleAbilities = {
 	"parentalbond": {
 		inherit: true,
 		onModifyMove: function (move, pokemon, target) {
-			if (move.category !== 'Status' && !move.selfdestruct && !move.multihit && ((target.side && target.side.active.length < 2) || move.target in {any:1, normal:1, randomNormal:1})) {
+			if (move.category !== 'Status' && !move.selfdestruct && !move.multihit && ((target.side && target.side.active.length < 2) || ['any', 'normal', 'randomNormal'].includes(move.target))) {
 				move.multihit = 2;
 				move.accuracy = true;
 				pokemon.addVolatile('parentalbond');
@@ -681,3 +687,5 @@ exports.BattleAbilities = {
 		onFoeTrapPokemon: function (pokemon) {},
 	},
 };
+
+exports.BattleAbilities = BattleAbilities;

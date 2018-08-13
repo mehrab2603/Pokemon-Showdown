@@ -1,6 +1,7 @@
 'use strict';
 
-exports.BattleMovedex = {
+/**@type {{[k: string]: ModdedMoveData}} */
+let BattleMovedex = {
 	bind: {
 		inherit: true,
 		onBeforeMove: function () {},
@@ -18,7 +19,7 @@ exports.BattleMovedex = {
 		desc: "If this attack misses the target, the user takes 1 HP of damage.",
 		shortDesc: "User takes 1 HP damage it would have dealt if miss.",
 		onMoveFail: function (target, source, move) {
-			if (target.type !== 'ghost') {
+			if (!target.types.includes('Ghost')) {
 				this.directDamage(1, source);
 			}
 		},
@@ -65,12 +66,12 @@ exports.BattleMovedex = {
 			onLockMove: 'rage',
 			onTryHit: function (target, source, move) {
 				if (target.boosts.atk < 6 && move.id === 'disable') {
-					this.boost({atk:1});
+					this.boost({atk: 1});
 				}
 			},
 			onHit: function (target, source, move) {
 				if (target.boosts.atk < 6 && move.category !== 'Status') {
-					this.boost({atk:1});
+					this.boost({atk: 1});
 				}
 			},
 			onMoveFail: function () {},
@@ -129,10 +130,8 @@ exports.BattleMovedex = {
 					return null;
 				}
 				if (move.category === 'Status') {
-					let SubBlocked = {
-						leechseed:1, lockon:1, mindreader:1, nightmare:1,
-					};
-					if (move.status || move.boosts || move.volatileStatus === 'confusion' || SubBlocked[move.id]) {
+					let SubBlocked = ['leechseed', 'lockon', 'mindreader', 'nightmare'];
+					if (move.status || move.boosts || move.volatileStatus === 'confusion' || SubBlocked.includes(move.id)) {
 						this.add('-activate', target, 'Substitute', '[block] ' + move.name);
 						return null;
 					}
@@ -157,22 +156,22 @@ exports.BattleMovedex = {
 					if (move.recoil) {
 						this.damage(Math.round(damage * move.recoil[0] / move.recoil[1]), source, target, 'recoil');
 					}
-					if (move.drain) {
-						this.heal(Math.ceil(damage * move.drain[0] / move.drain[1]), source, target, 'drain');
-					}
 				}
 				this.runEvent('AfterSubDamage', target, source, move, damage);
 				// Add here counter damage
-				if (!target.lastAttackedBy) target.lastAttackedBy = {pokemon: source, thisTurn: true};
-				target.lastAttackedBy.move = move.id;
-				target.lastAttackedBy.damage = damage;
+				if (!target.lastAttackedBy) {
+					target.lastAttackedBy = {pokemon: source, move: move.id, thisTurn: true, damage: damage};
+				} else {
+					target.lastAttackedBy.move = move.id;
+					target.lastAttackedBy.damage = damage;
+				}
 				return 0;
 			},
 			onEnd: function (target) {
 				this.add('-end', target, 'Substitute');
 			},
 		},
-		secondary: false,
+		secondary: null,
 		target: "self",
 		type: "Normal",
 	},
@@ -181,3 +180,5 @@ exports.BattleMovedex = {
 		onBeforeMove: function () {},
 	},
 };
+
+exports.BattleMovedex = BattleMovedex;

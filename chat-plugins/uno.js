@@ -43,8 +43,7 @@ function createDeck() {
 
 	let basic = [];
 
-	for (let i = 0; i < 4; i++) {
-		let color = colors[i];
+	for (const color of colors) {
 		basic.push(...values.map(v => {
 			return {value: v, color: color, name: color + " " + v};
 		}));
@@ -73,6 +72,7 @@ class UNOgame extends Rooms.RoomGame {
 		this.playerCap = cap;
 		this.allowRenames = true;
 		this.maxTime = maxTime;
+		this.autostartTimer = null;
 
 		this.gameid = 'uno';
 		this.title = 'UNO';
@@ -104,6 +104,7 @@ class UNOgame extends Rooms.RoomGame {
 
 	onStart() {
 		if (this.playerCount < 2) return false;
+		if (this.autostartTimer) clearTimeout(this.autostartTimer);
 		this.sendToRoom(`|uhtmlchange|uno-${this.room.gameNumber}|<div class="infobox"><p>The game of UNO has started.</p>${(this.suppressMessages ? `<p style="font-size: 6pt">Game messages will be shown to only players.  If you would like to spectate the game, use <strong>/uno spectate</strong></p>` : '')}</div>`, true);
 		this.state = 'play';
 
@@ -382,6 +383,9 @@ class UNOgame extends Rooms.RoomGame {
 		this.sendToRoom(`The color has been changed to ${color}.`);
 		clearTimeout(this.timer);
 
+		// send the display of their cards again
+		this.players[user.userid].sendDisplay();
+
 		if (this.isPlusFour) {
 			this.isPlusFour = false;
 			this.onNextPlayer(); // handle the skipping here.
@@ -396,7 +400,7 @@ class UNOgame extends Rooms.RoomGame {
 
 		let player = this.players[user.userid];
 		player.hand.push(...drawnCards);
-		player.sendRoom(`|raw|You have drawn the following card${drawnCards.length > 1 ? 's' : ''}: ${drawnCards.map(card => `<span style="color: ${textColors[card.color]}">${card.name}</span>`).join(', ')}.`);
+		player.sendRoom(`|raw|You have drawn the following card${Chat.plural(drawnCards)}: ${drawnCards.map(card => `<span style="color: ${textColors[card.color]}">${card.name}</span>`).join(', ')}.`);
 		return drawnCards;
 	}
 
@@ -448,6 +452,7 @@ class UNOgame extends Rooms.RoomGame {
 
 	destroy() {
 		clearTimeout(this.timer);
+		if (this.autostartTimer) clearTimeout(this.autostartTimer);
 		this.sendToRoom(`|uhtmlchange|uno-${this.room.gameNumber}|<div class="infobox">The game of UNO has ended.</div>`, true);
 
 		// deallocate games for each player.
@@ -476,8 +481,8 @@ class UNOgamePlayer extends Rooms.RoomGamePlayer {
 	}
 
 	removeCard(cardName) {
-		for (let i = 0; i < this.hand.length; i++) {
-			if (this.hand[i].name === cardName) {
+		for (const [i, card] of this.hand.entries()) {
+			if (card.name === cardName) {
 				this.hand.splice(i, 1);
 				break;
 			}
@@ -492,9 +497,9 @@ class UNOgamePlayer extends Rooms.RoomGamePlayer {
 	sendDisplay() {
 		let hand = this.buildHand().join('');
 		let players = `<p><strong>Players (${this.game.playerCount}):</strong></p>${this.game.getPlayers(true).join('<br />')}`;
-		let draw = '<button class="button" style="width: 30%; background: rgba(0, 0, 255, 0.05)" name=send value="/uno draw">Draw a card!</button>';
-		let pass = '<button class="button" style=" width: 30%; background: rgba(255, 0, 0, 0.05)" name=send value="/uno pass">Pass!</button>';
-		let uno = `<button class="button" style=" width: 30%; background: rgba(0, 255, 0, 0.05)" name=send value="/uno uno ${this.game.unoId || '0'}">UNO!</button>`;
+		let draw = '<button class="button" style="width: 45%; background: rgba(0, 0, 255, 0.05)" name=send value="/uno draw">Draw a card!</button>';
+		let pass = '<button class="button" style=" width: 45%; background: rgba(255, 0, 0, 0.05)" name=send value="/uno pass">Pass!</button>';
+		let uno = `<button class="button" style=" width: 90%; background: rgba(0, 255, 0, 0.05); height: 30px; margin-top: 2px;" name=send value="/uno uno ${this.game.unoId || '0'}">UNO!</button>`;
 
 		let top = `<strong>Top Card: <span style="color: ${textColors[this.game.topCard.changedColor || this.game.topCard.color]}">${this.game.topCard.name}</span></strong>`;
 
@@ -503,7 +508,7 @@ class UNOgamePlayer extends Rooms.RoomGamePlayer {
 		this.sendRoom(
 			`|uhtml|uno-hand|<div style="border: 1px solid skyblue; padding: 0 0 5px 0"><table style="width: 100%; table-layout: fixed; border-radius: 3px"><tr><td colspan=4 rowspan=2 style="padding: 5px"><div style="overflow-x: auto; white-space: nowrap; width: 100%">${hand}</div></td>${this.game.currentPlayer === this.userid ? `<td colspan=2 style="padding: 5px 5px 0 5px">${top}</td></tr>` : ""}` +
 			`<tr><td colspan=2 style="vertical-align: top; padding: 0px 5px 5px 5px"><div style="overflow-y: scroll">${players}</div></td></tr></table>` +
-			`${this.game.currentPlayer === this.userid ? `<div style="text-align: center">${draw} <span style="padding-left: 10px;"></span> ${pass} <span style="padding-left: 10px;"></span> ${uno}</div>` : ""}</div>`
+			`${this.game.currentPlayer === this.userid ? `<div style="text-align: center">${draw}${pass}<br />${uno}</div>` : ""}</div>`
 		);
 	}
 }
@@ -554,13 +559,17 @@ exports.commands = {
 			let suppressMessages = cmd.includes('private') || !(cmd.includes('public') || room.id === 'gamecorner');
 
 			room.game = new UNOgame(room, target, suppressMessages);
-			this.privateModCommand(`(A game of UNO was created by ${user.name}.)`);
+			this.privateModAction(`(A game of UNO was created by ${user.name}.)`);
+			this.modlog('UNO CREATE');
 		},
 
 		start: function (target, room, user) {
 			if (!this.can('minigame', null, room)) return;
 			if (!room.game || room.game.gameid !== 'uno' || room.game.state !== 'signups') return this.errorReply("There is no UNO game in signups phase in this room.");
-			if (room.game.onStart()) this.privateModCommand(`(The game of UNO was started by ${user.name}.)`);
+			if (room.game.onStart()) {
+				this.privateModAction(`(The game of UNO was started by ${user.name}.)`);
+				this.modlog('UNO START');
+			}
 		},
 
 		stop: 'end',
@@ -569,7 +578,8 @@ exports.commands = {
 			if (!room.game || room.game.gameid !== 'uno') return this.errorReply("There is no UNO game going on in this room.");
 			room.game.destroy();
 			room.add("The game of UNO was forcibly ended.").update();
-			this.privateModCommand(`(The game of UNO was ended by ${user.name}.)`);
+			this.privateModAction(`(The game of UNO was ended by ${user.name}.)`);
+			this.modlog('UNO END');
 		},
 
 		timer: function (target, room, user) {
@@ -585,7 +595,27 @@ exports.commands = {
 					room.game.eliminate(room.game.currentPlayer);
 				}, amount * 1000);
 			}
-			this.addModCommand(`${user.name} has set the UNO automatic disqualification timer to ${amount} seconds.`);
+			this.addModAction(`${user.name} has set the UNO automatic disqualification timer to ${amount} seconds.`);
+			this.modlog('UNO TIMER', null, `${amount} seconds`);
+		},
+
+		autostart: function (target, room, user) {
+			if (!this.can('minigame', null, room)) return;
+			if (!room.game || room.game.gameid !== 'uno') return this.errorReply("There is no UNO game going on in this room right now.");
+			if (toId(target) === 'off') {
+				if (!room.game.autostartTimer) return this.errorReply("There is no autostart timer running on.");
+				this.addModAction(`${user.name} has turned off the UNO autostart timer.`);
+				clearTimeout(room.game.autostartTimer);
+				return;
+			}
+			const amount = parseInt(target);
+			if (!amount || amount < 30 || amount > 600) return this.errorReply("The amount must be a number between 30 and 600 seconds.");
+			if (room.game.state !== 'signups') return this.errorReply("The game of UNO has already started.");
+			if (room.game.autostartTimer) clearTimeout(room.game.autostartTimer);
+			room.game.autostartTimer = setTimeout(() => {
+				room.game.onStart();
+			}, amount * 1000);
+			this.addModAction(`${user.name} has set the UNO autostart timer to ${amount} seconds.`);
 		},
 
 		dq: 'disqualify',
@@ -595,7 +625,8 @@ exports.commands = {
 
 			let disqualified = room.game.eliminate(toId(target));
 			if (disqualified === false) return this.errorReply(`Unable to disqualify ${target}.`);
-			this.privateModCommand(`(${user.name} has disqualified ${disqualified} from the UNO game.)`);
+			this.privateModAction(`(${user.name} has disqualified ${disqualified} from the UNO game.)`);
+			this.modlog('UNO DQ', toId(target));
 			room.add(`${target} has been disqualified from the UNO game.`).update();
 		},
 
@@ -681,7 +712,8 @@ exports.commands = {
 
 			room.game.suppressMessages = state;
 
-			this.addModCommand(`${user.name} has turned ${(state ? 'on' : 'off')} suppression of UNO game messages.`);
+			this.addModAction(`${user.name} has turned ${(state ? 'on' : 'off')} suppression of UNO game messages.`);
+			this.modlog('UNO SUPRESS', null, (state ? 'ON' : 'OFF'));
 		},
 
 		spectate: function (target, room, user) {
@@ -706,14 +738,15 @@ exports.commands = {
 	},
 
 	unohelp: [
-		"/uno create [player cap] - creates a new UNO game with an optional player cap (default player cap at 6). Use the command `createpublic` to force a public game or `createprivate` to force a private game. Requires: % @ * # & ~",
-		"/uno timer [amount] - sets an auto disqualification timer for `amount` seconds. Requires: % @ * # & ~",
-		"/uno end - ends the current game of UNO. Requires: % @ * # & ~",
-		"/uno start - starts the current game of UNO. Requires: % @ * # & ~",
-		"/uno disqualify [player] - disqualifies the player from the game. Requires: % @ * # & ~",
-		"/uno hand - displays your own hand.",
-		"/uno getusers - displays the players still in the game.",
-		"/uno [spectate | unspectate] - spectate / unspectate the current private UNO game.",
-		"/uno suppress [on | off] - Toggles suppression of game messages.",
+		`/uno create [player cap] - creates a new UNO game with an optional player cap (default player cap at 6). Use the command [createpublic] to force a public game or [createprivate] to force a private game. Requires: % @ * # & ~`,
+		`/uno timer [amount] - sets an auto disqualification timer for [amount] seconds. Requires: % @ * # & ~`,
+		`/uno autostart [amount] - sets an auto starting timer for [amount] seconds. Requires: % @ * # & ~`,
+		`/uno end - ends the current game of UNO. Requires: % @ * # & ~`,
+		`/uno start - starts the current game of UNO. Requires: % @ * # & ~`,
+		`/uno disqualify [player] - disqualifies the player from the game. Requires: % @ * # & ~`,
+		`/uno hand - displays your own hand.`,
+		`/uno getusers - displays the players still in the game.`,
+		`/uno [spectate|unspectate] - spectate / unspectate the current private UNO game.`,
+		`/uno suppress [on|off] - Toggles suppression of game messages.`,
 	],
 };

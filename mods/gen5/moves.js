@@ -1,6 +1,7 @@
 'use strict';
 
-exports.BattleMovedex = {
+/**@type {{[k: string]: ModdedMoveData}} */
+let BattleMovedex = {
 	absorb: {
 		inherit: true,
 		flags: {protect: 1, mirror: 1},
@@ -30,21 +31,20 @@ exports.BattleMovedex = {
 		desc: "A random move among those known by the user's party members is selected for use. Does not select Assist, Bestow, Chatter, Circle Throw, Copycat, Counter, Covet, Destiny Bond, Detect, Dragon Tail, Endure, Feint, Focus Punch, Follow Me, Helping Hand, Me First, Metronome, Mimic, Mirror Coat, Mirror Move, Nature Power, Protect, Rage Powder, Sketch, Sleep Talk, Snatch, Struggle, Switcheroo, Thief, Transform, or Trick.",
 		onHit: function (target) {
 			let moves = [];
-			for (let j = 0; j < target.side.pokemon.length; j++) {
-				let pokemon = target.side.pokemon[j];
+			for (const pokemon of target.side.pokemon) {
 				if (pokemon === target) continue;
-				for (let i = 0; i < pokemon.moves.length; i++) {
-					let move = pokemon.moves[i];
-					let noAssist = {
-						assist:1, bestow:1, chatter:1, circlethrow:1, copycat:1, counter:1, covet:1, destinybond:1, detect:1, dragontail:1, endure:1, feint:1, focuspunch:1, followme:1, helpinghand:1, mefirst:1, metronome:1, mimic:1, mirrorcoat:1, mirrormove:1, naturepower:1, protect:1, ragepowder:1, sketch:1, sleeptalk:1, snatch:1, struggle:1, switcheroo:1, thief:1, transform:1, trick:1,
-					};
-					if (move && !noAssist[move]) {
-						moves.push(move);
+				for (const moveSlot of pokemon.moveSlots) {
+					let moveid = moveSlot.id;
+					let noAssist = [
+						'assist', 'bestow', 'chatter', 'circlethrow', 'copycat', 'counter', 'covet', 'destinybond', 'detect', 'dragontail', 'endure', 'feint', 'focuspunch', 'followme', 'helpinghand', 'mefirst', 'metronome', 'mimic', 'mirrorcoat', 'mirrormove', 'naturepower', 'protect', 'ragepowder', 'sketch', 'sleeptalk', 'snatch', 'struggle', 'switcheroo', 'thief', 'transform', 'trick',
+					];
+					if (moveid && !noAssist.includes(moveid)) {
+						moves.push(moveid);
 					}
 				}
 			}
 			let randomMove = '';
-			if (moves.length) randomMove = moves[this.random(moves.length)];
+			if (moves.length) randomMove = this.sample(moves);
 			if (!randomMove) {
 				return false;
 			}
@@ -113,7 +113,7 @@ exports.BattleMovedex = {
 			chance: 10,
 			volatileStatus: 'confusion',
 		},
-		flags: {protect: 1, mirror: 1, sound: 1, distance: 1},
+		flags: {protect: 1, sound: 1, distance: 1},
 	},
 	clamp: {
 		inherit: true,
@@ -121,11 +121,11 @@ exports.BattleMovedex = {
 	},
 	conversion: {
 		inherit: true,
-		desc: "The user's type changes to match the original type of one of its four moves besides this move, at random, but not either of its current types. Fails if the user cannot change its type, or if this move would only be able to select one of the user's current types.",
+		desc: "The user's type changes to match the original type of one of its known moves besides this move, at random, but not either of its current types. Fails if the user cannot change its type, or if this move would only be able to select one of the user's current types.",
 		shortDesc: "Changes user's type to match a known move.",
 		onHit: function (target) {
-			let possibleTypes = target.moveset.map(val => {
-				let move = this.getMove(val.id);
+			let possibleTypes = target.moveSlots.map(moveSlot => {
+				let move = this.getMove(moveSlot.id);
 				if (move.id !== 'conversion' && !target.hasType(move.type)) {
 					return move.type;
 				}
@@ -134,7 +134,7 @@ exports.BattleMovedex = {
 			if (!possibleTypes.length) {
 				return false;
 			}
-			let type = possibleTypes[this.random(possibleTypes.length)];
+			let type = this.sample(possibleTypes);
 
 			if (!target.setType(type)) return false;
 			this.add('-start', target, 'typechange', type);
@@ -144,11 +144,11 @@ exports.BattleMovedex = {
 		inherit: true,
 		desc: "The user uses the last move used by any Pokemon, including itself. Fails if no move has been used, or if the last move used was Assist, Bestow, Chatter, Circle Throw, Copycat, Counter, Covet, Destiny Bond, Detect, Dragon Tail, Endure, Feint, Focus Punch, Follow Me, Helping Hand, Me First, Metronome, Mimic, Mirror Coat, Mirror Move, Nature Power, Protect, Rage Powder, Sketch, Sleep Talk, Snatch, Struggle, Switcheroo, Thief, Transform, or Trick.",
 		onHit: function (pokemon) {
-			let noCopycat = {assist:1, bestow:1, chatter:1, circlethrow:1, copycat:1, counter:1, covet:1, destinybond:1, detect:1, dragontail:1, endure:1, feint:1, focuspunch:1, followme:1, helpinghand:1, mefirst:1, metronome:1, mimic:1, mirrorcoat:1, mirrormove:1, naturepower:1, protect:1, ragepowder:1, sketch:1, sleeptalk:1, snatch:1, struggle:1, switcheroo:1, thief:1, transform:1, trick:1};
-			if (!this.lastMove || noCopycat[this.lastMove]) {
+			let noCopycat = ['assist', 'bestow', 'chatter', 'circlethrow', 'copycat', 'counter', 'covet', 'destinybond', 'detect', 'dragontail', 'endure', 'feint', 'focuspunch', 'followme', 'helpinghand', 'mefirst', 'metronome', 'mimic', 'mirrorcoat', 'mirrormove', 'naturepower', 'protect', 'ragepowder', 'sketch', 'sleeptalk', 'snatch', 'struggle', 'switcheroo', 'thief', 'transform', 'trick'];
+			if (!this.lastMove || noCopycat.includes(this.lastMove.id)) {
 				return false;
 			}
-			this.useMove(this.lastMove, pokemon);
+			this.useMove(this.lastMove.id, pokemon);
 		},
 	},
 	cottonspore: {
@@ -170,11 +170,11 @@ exports.BattleMovedex = {
 		desc: "Lowers the target's evasiveness by 1 stage. If this move is successful and whether or not the target's evasiveness was affected, the effects of Reflect, Light Screen, Safeguard, Mist, Spikes, Toxic Spikes, and Stealth Rock end for the target's side. Ignores a target's substitute, although a substitute will still block the lowering of evasiveness.",
 		shortDesc: "-1 evasion; clears target side's hazards/screens.",
 		onHit: function (pokemon) {
-			if (!pokemon.volatiles['substitute']) this.boost({evasion:-1});
-			let sideConditions = {reflect:1, lightscreen:1, safeguard:1, mist:1, spikes:1, toxicspikes:1, stealthrock:1};
-			for (let i in sideConditions) {
-				if (pokemon.side.removeSideCondition(i)) {
-					this.add('-sideend', pokemon.side, this.getEffect(i).name, '[from] move: Defog', '[of] ' + pokemon);
+			if (!pokemon.volatiles['substitute']) this.boost({evasion: -1});
+			let sideConditions = ['reflect', 'lightscreen', 'safeguard', 'mist', 'spikes', 'toxicspikes', 'stealthrock'];
+			for (const condition of sideConditions) {
+				if (pokemon.side.removeSideCondition(condition)) {
+					this.add('-sideend', pokemon.side, this.getEffect(condition).name, '[from] move: Defog', '[of] ' + pokemon);
 				}
 			}
 		},
@@ -218,6 +218,7 @@ exports.BattleMovedex = {
 	feint: {
 		inherit: true,
 		desc: "If this move is successful, it breaks through the target's Detect or Protect for this turn, allowing other Pokemon to attack the target normally. If the target is an opponent and its side is protected by Quick Guard or Wide Guard, that protection is also broken for this turn and other Pokemon may attack the opponent's side normally.",
+		flags: {},
 	},
 	finalgambit: {
 		inherit: true,
@@ -231,7 +232,7 @@ exports.BattleMovedex = {
 		inherit: true,
 		basePower: 50,
 		basePowerCallback: function (target, source, move) {
-			if (move.sourceEffect in {grasspledge:1, waterpledge:1}) {
+			if (['grasspledge', 'waterpledge'].includes(move.sourceEffect)) {
 				this.add('-combine');
 				return 150;
 			}
@@ -316,7 +317,7 @@ exports.BattleMovedex = {
 		inherit: true,
 		basePower: 50,
 		basePowerCallback: function (target, source, move) {
-			if (move.sourceEffect in {waterpledge:1, firepledge:1}) {
+			if (['waterpledge', 'firepledge'].includes(move.sourceEffect)) {
 				this.add('-combine');
 				return 150;
 			}
@@ -540,6 +541,10 @@ exports.BattleMovedex = {
 		accuracy: 85,
 		basePower: 100,
 	},
+	metronome: {
+		inherit: true,
+		desc: "A random move is selected for use, other than After You, Assist, Bestow, Chatter, Copycat, Counter, Covet, Destiny Bond, Detect, Endure, Feint, Focus Punch, Follow Me, Freeze Shock, Helping Hand, Ice Burn, Me First, Metronome, Mimic, Mirror Coat, Mirror Move, Nature Power, Protect, Quash, Quick Guard, Rage Powder, Relic Song, Secret Sword, Sketch, Sleep Talk, Snarl, Snatch, Snore, Struggle, Switcheroo, Techno Blast, Thief, Transform, Trick, V-create, or Wide Guard.",
+	},
 	minimize: {
 		inherit: true,
 		desc: "Raises the user's evasiveness by 2 stages. Whether or not the user's evasiveness was changed, Stomp and Steamroller will have their power doubled if used against the user while it is active.",
@@ -547,7 +552,7 @@ exports.BattleMovedex = {
 		effect: {
 			noCopy: true,
 			onSourceModifyDamage: function (damage, source, target, move) {
-				if (move.id in {'stomp':1, 'steamroller':1}) {
+				if (['stomp', 'steamroller'].includes(move.id)) {
 					return this.chainModify(2);
 				}
 			},
@@ -583,7 +588,7 @@ exports.BattleMovedex = {
 				if (move.type === 'Electric') return this.chainModify([0x548, 0x1000]); // The Mud Sport modifier is slightly higher than the usual 0.33 modifier (0x547)
 			},
 		},
-		secondary: false,
+		secondary: null,
 		target: "all",
 		type: "Ground",
 	},
@@ -758,7 +763,7 @@ exports.BattleMovedex = {
 		effect: {
 			duration: 1,
 			onAfterMoveSecondarySelf: function (source, target, move) {
-				if (this.random(10) < 3) {
+				if (this.randomChance(3, 10)) {
 					this.boost({accuracy: -1}, target, source);
 				}
 				source.removeVolatile('secretpower');
@@ -988,7 +993,7 @@ exports.BattleMovedex = {
 		inherit: true,
 		basePower: 50,
 		basePowerCallback: function (target, source, move) {
-			if (move.sourceEffect in {firepledge:1, grasspledge:1}) {
+			if (['firepledge', 'grasspledge'].includes(move.sourceEffect)) {
 				this.add('-combine');
 				return 150;
 			}
@@ -1021,7 +1026,7 @@ exports.BattleMovedex = {
 				if (move.type === 'Fire') return this.chainModify([0x548, 0x1000]); // The Water Sport modifier is slightly higher than the usual 0.33 modifier (0x547)
 			},
 		},
-		secondary: false,
+		secondary: null,
 		target: "all",
 		type: "Water",
 	},
@@ -1058,3 +1063,5 @@ exports.BattleMovedex = {
 		desc: "Prevents the target from switching for four or five turns; seven turns if the user is holding Grip Claw. Causes damage to the target equal to 1/16 of its maximum HP (1/8 if the user is holding Binding Band), rounded down, at the end of each turn during effect. The target can still switch out if it is holding Shed Shell or uses Baton Pass, U-turn, or Volt Switch. The effect ends if either the user or the target leaves the field, or if the target uses Rapid Spin. This effect is not stackable or reset by using this or another partial-trapping move.",
 	},
 };
+
+exports.BattleMovedex = BattleMovedex;

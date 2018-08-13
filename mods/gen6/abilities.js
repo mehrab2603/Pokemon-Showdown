@@ -1,6 +1,7 @@
 'use strict';
 
-exports.BattleAbilities = {
+/**@type {{[k: string]: ModdedAbilityData}} */
+let BattleAbilities = {
 	"aerilate": {
 		inherit: true,
 		desc: "This Pokemon's Normal-type moves become Flying-type moves and have their power multiplied by 1.3. This effect comes after other effects that change a move's type, but before Ion Deluge and Electrify's effects.",
@@ -16,6 +17,11 @@ exports.BattleAbilities = {
 				this.damage(source.maxhp / 4, source, target, null, true);
 			}
 		},
+	},
+	"damp": {
+		inherit: true,
+		desc: "While this Pokemon is active, Explosion, Self-Destruct, and the Ability Aftermath are prevented from having an effect.",
+		shortDesc: "Prevents Explosion/Self-Destruct/Aftermath while this Pokemon is active.",
 	},
 	"galewings": {
 		inherit: true,
@@ -53,6 +59,10 @@ exports.BattleAbilities = {
 		inherit: true,
 		shortDesc: "If this Pokemon is an Arceus, its type changes to match its held Plate.",
 	},
+	"mummy": {
+		inherit: true,
+		desc: "Pokemon making contact with this Pokemon have their Ability changed to Mummy. Does not affect the Abilities Multitype or Stance Change.",
+	},
 	"normalize": {
 		inherit: true,
 		desc: "This Pokemon's moves are changed to be Normal type. This effect comes before other effects that change a move's type.",
@@ -70,7 +80,7 @@ exports.BattleAbilities = {
 		desc: "This Pokemon's damaging moves become multi-hit moves that hit twice. The second hit has its damage halved. Does not affect multi-hit moves or moves that have multiple targets.",
 		shortDesc: "This Pokemon's damaging moves hit twice. The second hit has its damage halved.",
 		onBasePower: function (basePower, pokemon, target, move) {
-			if (move.hasParentalBond && ++move.hit > 1) return this.chainModify(0.5);
+			if (move.hasParentalBond && typeof move.hit === 'number' && ++move.hit > 1) return this.chainModify(0.5);
 		},
 	},
 	"pixilate": {
@@ -112,9 +122,11 @@ exports.BattleAbilities = {
 		shortDesc: "If a physical attack hits this Pokemon, Defense is lowered by 1, Speed is raised by 1.",
 		onAfterDamage: function (damage, target, source, move) {
 			if (move.category === 'Physical') {
-				this.boost({def:-1, spe:1});
+				this.boost({def: -1, spe: 1}, target, target);
 			}
 		},
 		rating: 0.5,
 	},
 };
+
+exports.BattleAbilities = BattleAbilities;

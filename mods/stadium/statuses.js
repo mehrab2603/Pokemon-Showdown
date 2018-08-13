@@ -1,7 +1,11 @@
 'use strict';
 
-exports.BattleStatuses = {
+/**@type {{[k: string]: ModdedEffectData}} */
+let BattleStatuses = {
 	brn: {
+		name: 'brn',
+		id: 'brn',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'brn');
@@ -15,13 +19,16 @@ exports.BattleStatuses = {
 		},
 	},
 	par: {
+		name: 'par',
+		id: 'par',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'par');
 		},
 		onBeforeMovePriority: 2,
 		onBeforeMove: function (pokemon) {
-			if (this.random(256) < 63) {
+			if (this.randomChance(63, 256)) {
 				this.add('cant', pokemon, 'par');
 				pokemon.removeVolatile('bide');
 				pokemon.removeVolatile('lockedmovee');
@@ -36,6 +43,9 @@ exports.BattleStatuses = {
 		},
 	},
 	slp: {
+		name: 'slp',
+		id: 'slp',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'slp');
@@ -47,7 +57,7 @@ exports.BattleStatuses = {
 		onBeforeMove: function (pokemon, target, move) {
 			pokemon.statusData.time--;
 			this.add('cant', pokemon, 'slp');
-			pokemon.lastMove = '';
+			pokemon.lastMove = null;
 			return false;
 		},
 		onAfterMoveSelf: function (pokemon) {
@@ -55,6 +65,9 @@ exports.BattleStatuses = {
 		},
 	},
 	frz: {
+		name: 'frz',
+		id: 'frz',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'frz');
@@ -62,7 +75,7 @@ exports.BattleStatuses = {
 		onBeforeMovePriority: 2,
 		onBeforeMove: function (pokemon, target, move) {
 			this.add('cant', pokemon, 'frz');
-			pokemon.lastMove = '';
+			pokemon.lastMove = null;
 			return false;
 		},
 		onHit: function (target, source, move) {
@@ -72,6 +85,9 @@ exports.BattleStatuses = {
 		},
 	},
 	psn: {
+		name: 'psn',
+		id: 'psn',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'psn');
@@ -85,6 +101,9 @@ exports.BattleStatuses = {
 		},
 	},
 	tox: {
+		name: 'tox',
+		id: 'tox',
+		num: 0,
 		effectType: 'Status',
 		onStart: function (target) {
 			this.add('-status', target, 'tox');
@@ -102,6 +121,9 @@ exports.BattleStatuses = {
 		},
 	},
 	partiallytrapped: {
+		name: 'partiallytrapped',
+		id: 'partiallytrapped',
+		num: 0,
 		duration: 2,
 		onBeforeMovePriority: 1,
 		onStart: function (target, source, effect) {
@@ -120,3 +142,5 @@ exports.BattleStatuses = {
 		},
 	},
 };
+
+exports.BattleStatuses = BattleStatuses;

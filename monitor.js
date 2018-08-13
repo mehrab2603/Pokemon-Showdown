@@ -8,7 +8,7 @@
  */
 'use strict';
 
-const FS = require('./fs');
+const FS = require('./lib/fs');
 
 const MONITOR_CLEAN_TIMEOUT = 2 * 60 * 60 * 1000;
 
@@ -54,11 +54,15 @@ if (('Config' in global) &&
 	Config.loglevel = 2;
 }
 
-// @ts-ignore
 const Monitor = module.exports = {
 	/*********************************************************
 	 * Logging
 	 *********************************************************/
+
+	/** @param {Error} error */
+	crashlog(error, source = 'The main process') {
+		require('./lib/crashlogger')(error, source);
+	},
 
 	/**
 	 * @param {string} text
@@ -127,6 +131,7 @@ const Monitor = module.exports = {
 	battles: new TimedCounter(),
 	battlePreps: new TimedCounter(),
 	groupChats: new TimedCounter(),
+	tickets: new TimedCounter(),
 
 	/** @type {string | null} */
 	activeIp: null,
@@ -144,7 +149,7 @@ const Monitor = module.exports = {
 	countConnection(ip, name = '') {
 		let [count, duration] = this.connections.increment(ip, 30 * 60 * 1000);
 		if (count === 500) {
-			this.adminlog(`[ResourceMonitor] IP ${ip} banned for cflooding (${count} times in ${Chat.toDurationString(duration)}${name ? `: ${name}` : ''})`);
+			this.adminlog(`[ResourceMonitor] IP ${ip} banned for cflooding (${count} times in ${Chat.toDurationString(duration)}${name ? ': ' + name : ''})`);
 			return true;
 		}
 
@@ -152,7 +157,7 @@ const Monitor = module.exports = {
 			if (count % 500 === 0) {
 				let c = count / 500;
 				if (c === 2 || c === 4 || c === 10 || c === 20 || c % 40 === 0) {
-					this.adminlog(`[ResourceMonitor] IP ${ip} still cflooding (${count} times in ${Chat.toDurationString(duration)}${name ? `: ${name}` : ''})`);
+					this.adminlog(`[ResourceMonitor] IP ${ip} still cflooding (${count} times in ${Chat.toDurationString(duration)}${name ? ': ' + name : ''})`);
 				}
 			}
 			return true;
@@ -172,12 +177,12 @@ const Monitor = module.exports = {
 	countBattle(ip, name = '') {
 		let [count, duration] = this.battles.increment(ip, 30 * 60 * 1000);
 		if (duration < 5 * 60 * 1000 && count % 30 === 0) {
-			this.adminlog(`[ResourceMonitor] IP ${ip} has battled ${count} times in the last ${Chat.toDurationString(duration)}${name ? `: name` : ''})`);
+			this.adminlog(`[ResourceMonitor] IP ${ip} has battled ${count} times in the last ${Chat.toDurationString(duration)}${name ? ': ' + name : ''})`);
 			return true;
 		}
 
 		if (count % 150 === 0) {
-			this.adminlog('[ResourceMonitor] IP ' + ip + ' has battled ' + count + ' times in the last ' + Chat.toDurationString(duration) + name);
+			this.adminlog(`[ResourceMonitor] IP ${ip} has battled ${count} times in the last ${Chat.toDurationString(duration)}${name ? ': ' + name : ''}`);
 			return true;
 		}
 
@@ -223,6 +228,21 @@ const Monitor = module.exports = {
 	},
 
 	/**
+	 * Counts ticket creation. Returns true if too much.
+	 *
+	 * @param {string} ip
+	 * @return {boolean}
+	 */
+	countTickets(ip) {
+		let count = this.tickets.increment(ip, 60 * 60 * 1000)[0];
+		if (Punishments.sharedIps.has(ip)) {
+			return count >= 20;
+		} else {
+			return count >= 5;
+		}
+	},
+
+	/**
 	 * Counts the data length received by the last connection to send a
 	 * message, as well as the data length in the server's response.
 	 *
@@ -230,16 +250,11 @@ const Monitor = module.exports = {
 	 */
 	countNetworkUse(size) {
 		if (!Config.emergency || typeof this.activeIp !== 'string') return;
-		// @ts-ignore
 		if (this.activeIp in this.networkUse) {
-			// @ts-ignore
 			this.networkUse[this.activeIp] += size;
-			// @ts-ignore
 			this.networkCount[this.activeIp]++;
 		} else {
-			// @ts-ignore
 			this.networkUse[this.activeIp] = size;
-			// @ts-ignore
 			this.networkCount[this.activeIp] = 1;
 		}
 	},

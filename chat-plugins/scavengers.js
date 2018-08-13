@@ -14,13 +14,14 @@ const fs = require('fs');
 
 const DEFAULT_POINTS = [20, 15, 10, 5, 1];
 const DEFAULT_BLITZ_POINTS = 10;
+const DEFAULT_TIMER_DURATION = 120;
 
 const path = require('path');
 const DATA_FILE = path.resolve(__dirname, '../config/chat-plugins/scavdata.json');
 const HOST_DATA_FILE = path.resolve(__dirname, '../config/chat-plugins/scavhostdata.json');
 const PLAYER_DATA_FILE = path.resolve(__dirname, '../config/chat-plugins/scavplayerdata.json');
 
-const SCAVENGE_REGEX = /^(?:\s)?(?:\/{2,}|\W)?(?:\s)?(?:s\W?cavenge|s\W?cav(?:engers)? guess|d\W?t|d\W?ata|d\W?etails|g\W?(?:uess)?|v)\b/i; // a regex of some of all the possible slips for leaks.
+const SCAVENGE_REGEX = /^((?:\s)?(?:\/{2,}|[^\w/]+)|\s\/)?(?:\s)?(?:s\W?cavenge|s\W?cav(?:engers)? guess|d\W?t|d\W?ata|d\W?etails|g\W?(?:uess)?|v)\b/i; // a regex of some of all the possible slips for leaks.
 const FILTER_LENIENCY = 7;
 
 const HISTORY_PERIOD = 6; // months
@@ -157,9 +158,16 @@ let Leaderboard = new Ladder(DATA_FILE);
 let HostLeaderboard = new PlayerLadder(HOST_DATA_FILE);
 let PlayerLeaderboard = new PlayerLadder(PLAYER_DATA_FILE);
 
-function formatQueue(queue, viewer) {
-	let buf = queue.map((item, index) => `<tr${(!item.hosts.some(h => h.userid === viewer.userid) && viewer.userid !== item.staffHostId ? ` style="background-color: lightgray"` : "")}><td><button name="send" value="/scav dequeue ${index}" style="color: red; background-color: transparent; border: none; padding: 1px;">[x]</button><button name="send" value="/scav next ${index}" style="color: green; background-color: transparent; border: none; padding: 1px;">[start]</button>&nbsp;${Chat.escapeHTML(Chat.toListString(item.hosts.map(h => h.name)))}${item.hosts.every(h => h.userid !== item.staffHostId) ? ` / ${item.staffHostId}` : ''}</td><td>${(item.hosts.some(h => h.userid === viewer.userid) || viewer.userid === item.staffHostId ? item.questions.map((q, i) => i % 2 ? `<span style="color: green"><em>[${Chat.escapeHTML(q.join(' / '))}]</em></span><br />` : Chat.escapeHTML(q)).join(" ") : `[${item.questions.length / 2} hidden questions]`)}</td></tr>`).join("");
-	return `<div class="ladder"><table style="width: 100%"><tr><th>By</th><th>Questions</th></tr>${buf}</table></div><div style="text-align: right;"><button class="button" name="send" value="/scav next 0">Start the next hunt</button></div>`;
+function formatQueue(queue = [], viewer, room) {
+	const queueDisabled = room.scavQueueDisabled;
+	const timerDuration = room.defaultScavTimer || DEFAULT_TIMER_DURATION;
+	let buffer;
+	if (queue.length) {
+		buffer = queue.map((item, index) => `<tr${(!item.hosts.some(h => h.userid === viewer.userid) && viewer.userid !== item.staffHostId ? ` style="background-color: lightgray"` : "")}><td><button name="send" value="/scav dequeue ${index}" style="color: red; background-color: transparent; border: none; padding: 1px;">[x]</button><button name="send" value="/scav next ${index}" style="color: green; background-color: transparent; border: none; padding: 1px;">[start]</button>&nbsp;${Chat.escapeHTML(Chat.toListString(item.hosts.map(h => h.name)))}${item.hosts.every(h => h.userid !== item.staffHostId) ? ` / ${item.staffHostId}` : ''}</td><td>${(item.hosts.some(h => h.userid === viewer.userid) || viewer.userid === item.staffHostId ? item.questions.map((q, i) => i % 2 ? `<span style="color: green"><em>[${Chat.escapeHTML(q.join(' / '))}]</em></span><br />` : Chat.escapeHTML(q)).join(" ") : `[${item.questions.length / 2} hidden questions]`)}</td></tr>`).join("");
+	} else {
+		buffer = `<tr><td colspan=3>The scavenger queue is currently empty.</td></tr>`;
+	}
+	return `<div class="ladder"><table style="width: 100%"><tr><th>By</th><th>Questions</th></tr>${buffer}</table></div><table style="width: 100%"><tr><td style="text-align: left;">Auto Timer Duration: ${timerDuration} minutes</td><td>Auto Dequeue: <button class="button${!queueDisabled ? '" name="send" value="/scav disablequeue"' : ' disabled" style="font-weight:bold; color:#575757; font-weight:bold; background-color:#d3d3d3;"'}>OFF</button>&nbsp;<button class="button${queueDisabled ? '" name="send" value="/scav enablequeue"' : ' disabled" style="font-weight:bold; color:#575757; font-weight:bold; background-color:#d3d3d3;"'}>ON</button></td><td style="text-align: right;"><button class="button" name="send" value="/scav next 0">Start the next hunt</button></td></tr></table>`;
 }
 
 function formatOrder(place) {
@@ -183,14 +191,6 @@ class ScavengerHunt extends Rooms.RoomGame {
 		this.gameType = gameType;
 		this.playerCap = Infinity;
 
-		this.hosts = hosts;
-		this.staffHostId = staffHost.userid;
-		this.staffHostName = staffHost.name;
-
-		this.gameid = 'scavengerhunt';
-		this.title = 'Scavenger Hunt';
-		this.scavGame = true;
-
 		this.state = 'signups';
 		this.joinedIps = [];
 
@@ -202,23 +202,30 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 		this.parentGame = parentGame || null;
 
+		this.hosts = hosts;
+
+		this.staffHostId = staffHost.userid;
+		this.staffHostName = staffHost.name;
+		this.cacheUserIps(staffHost); // store it in case of host subbing
+
+		this.gameid = 'scavengerhunt';
+		this.title = 'Scavenger Hunt';
+		this.scavGame = true;
+
 		this.onLoad(questions);
 	}
 
 	// alert new users that are joining the room about the current hunt.
 	onConnect(user, connection) {
 		// send the fact that a hunt is currently going on.
-		connection.sendTo(this.room, `|raw|<div class="broadcast-blue"><strong>${(this.gameType === 'official' ? "An official" : this.gameType === 'practice' ? "A practice" : "A")} Scavenger Hunt by <em>${Chat.escapeHTML(Chat.toListString(this.hosts.map(h => h.name)))}</em> has been started${(this.hosts.some(h => h.userid === this.staffHostId) ? '' : ` by <em>${Chat.escapeHTML(this.staffHostName)}</em>`)}.<br />The first hint is: ${Chat.parseText(this.questions[0].hint)}</strong></div>`);
+		connection.sendTo(this.room, `|raw|<div class="broadcast-blue"><strong>${(this.gameType === 'official' ? "An official" : this.gameType === 'practice' ? "A practice" : "A")} Scavenger Hunt by <em>${Chat.escapeHTML(Chat.toListString(this.hosts.map(h => h.name)))}</em> has been started${(this.hosts.some(h => h.userid === this.staffHostId) ? '' : ` by <em>${Chat.escapeHTML(this.staffHostName)}</em>`)}.<br />The first hint is: ${Chat.formatText(this.questions[0].hint)}</strong></div>`);
 	}
 
 	joinGame(user) {
-		if (this.hosts.some(h => h.userid === user.userid) || user.userid === this.staffHostId) return user.sendTo(this.room, "You cannot join your own hunt! If you wish to view the check your questions, use /viewhunt instead!");
+		if (this.hosts.some(h => h.userid === user.userid) || user.userid === this.staffHostId) return user.sendTo(this.room, "You cannot join your own hunt! If you wish to view your questions, use /viewhunt instead!");
 		if (Object.keys(user.ips).some(ip => this.joinedIps.includes(ip))) return user.sendTo(this.room, "You already have one alt in the hunt.");
 		if (this.addPlayer(user)) {
-			// limit to 1 IP in every game.
-			for (let ip in user.ips) {
-				this.joinedIps.push(ip);
-			}
+			this.cacheUserIps(user);
 			delete this.leftHunt[user.userid];
 			user.sendTo("You joined the scavenger hunt! Use the command /scavenge to answer.");
 			this.onSendQuestion(user);
@@ -226,6 +233,14 @@ class ScavengerHunt extends Rooms.RoomGame {
 		}
 		user.sendTo(this.room, "You have already joined the hunt.");
 		return false;
+	}
+
+	cacheUserIps(user) {
+		// limit to 1 IP in every game.
+		if (!user.ips) return; // ghost user object cached from queue
+		for (let ip in user.ips) {
+			this.joinedIps.push(ip);
+		}
 	}
 
 	leaveGame(user) {
@@ -253,7 +268,7 @@ class ScavengerHunt extends Rooms.RoomGame {
 			this.questions.push({hint: hint, answer: answer});
 		}
 
-		this.announce(`A new${(this.gameType === 'official' ? " official" : this.gameType === 'practice' ? " practice" : '')} Scavenger Hunt by <em>${Chat.escapeHTML(Chat.toListString(this.hosts.map(h => h.name)))}</em> has been started${(this.hosts.some(h => h.userid === this.staffHostId) ? '' : ` by <em>${Chat.escapeHTML(this.staffHostName)}</em>`)}.<br />The first hint is: ${Chat.parseText(this.questions[0].hint)}`);
+		this.announce(`A new${(this.gameType === 'official' ? " official" : this.gameType === 'practice' ? " practice" : '')} Scavenger Hunt by <em>${Chat.escapeHTML(Chat.toListString(this.hosts.map(h => h.name)))}</em> has been started${(this.hosts.some(h => h.userid === this.staffHostId) ? '' : ` by <em>${Chat.escapeHTML(this.staffHostName)}</em>`)}.<br />The first hint is: ${Chat.formatText(this.questions[0].hint)}`);
 	}
 
 	onEditQuestion(number, question_answer, value) {
@@ -285,10 +300,12 @@ class ScavengerHunt extends Rooms.RoomGame {
 		if (this.timer) {
 			clearTimeout(this.timer);
 			delete this.timer;
+			this.timerEnd = null;
 		}
 
 		if (minutes && minutes > 0) {
 			this.timer = setTimeout(() => this.onEnd(), minutes * 60000);
+			this.timerEnd = Date.now() + minutes * 60000;
 		}
 
 		return minutes || 'off';
@@ -327,7 +344,7 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 		let current = player.getCurrentQuestion();
 
-		player.sendRoom(`|raw|You are on ${(current.number === this.questions.length ? "final " : "")}hint #${current.number}: ${Chat.parseText(current.question.hint)}`);
+		player.sendRoom(`|raw|You are on ${(current.number === this.questions.length ? "final " : "")}hint #${current.number}: ${Chat.formatText(current.question.hint)}`);
 		return true;
 	}
 
@@ -340,7 +357,7 @@ class ScavengerHunt extends Rooms.RoomGame {
 			qLimit = player.currentQuestion;
 		}
 
-		user.sendTo(this.room, `|raw|<div class="ladder"><table style="width: 100%"><tr><th style="width: 10%;">#</th><th>Hint</th><th>Answer</th></tr>${(qLimit ? this.questions.slice(0, qLimit).map((q, i) => `<tr><td>${(i + 1)}</td><td>${Chat.parseText(q.hint)}</td><td>${Chat.escapeHTML(q.answer.join(' / '))}</td></tr>`).join("") : '<tr><td colspan="3">You have not completed any of the questions yet!</td></tr>')}</table><div>`);
+		user.sendTo(this.room, `|raw|<div class="ladder"><table style="width: 100%"><tr><th style="width: 10%;">#</th><th>Hint</th><th>Answer</th></tr>${(qLimit ? this.questions.slice(0, qLimit).map((q, i) => `<tr><td>${(i + 1)}</td><td>${Chat.formatText(q.hint)}</td><td>${Chat.escapeHTML(q.answer.join(' / '))}</td></tr>`).join("") : '<tr><td colspan="3">You have not completed any of the questions yet!</td></tr>')}</table><div>`);
 	}
 
 	onComplete(player) {
@@ -361,7 +378,8 @@ class ScavengerHunt extends Rooms.RoomGame {
 	}
 
 	onEnd(reset, endedBy) {
-		if (!endedBy && this.completed.length === 0) {
+		if (this.parentGame) this.parentGame.onBeforeEndHunt();
+		if (!endedBy && (this.preCompleted ? this.preCompleted.length : this.completed.length) === 0) {
 			reset = true;
 		}
 		if (!reset) {
@@ -371,11 +389,11 @@ class ScavengerHunt extends Rooms.RoomGame {
 			let blitzPoints = this.room.blitzPoints || DEFAULT_BLITZ_POINTS;
 
 			if (this.gameType === 'official') {
-				for (let i = 0; i < this.completed.length; i++) {
-					if (!this.completed[i].blitz && i >= winPoints.length) break; // there won't be any more need to keep going
-					let name = this.completed[i].name;
+				for (const [i, completed] of this.completed.entries()) {
+					if (!completed.blitz && i >= winPoints.length) break; // there won't be any more need to keep going
+					let name = completed.name;
 					if (winPoints[i]) Leaderboard.addPoints(name, 'points', winPoints[i]);
-					if (this.completed[i].blitz) Leaderboard.addPoints(name, 'points', blitzPoints);
+					if (completed.blitz) Leaderboard.addPoints(name, 'points', blitzPoints);
 				}
 				Leaderboard.write();
 			}
@@ -384,8 +402,8 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 			this.announce(
 				`The ${this.gameType ? `${this.gameType} ` : ""}scavenger hunt was ended ${(endedBy ? "by " + Chat.escapeHTML(endedBy.name) : "automatically")}.<br />` +
-				`${this.completed.slice(0, sliceIndex).map((p, i) => `${formatOrder(i + 1)} place: <em>${Chat.escapeHTML(p.name)}</em>.<br />`).join("")}${this.completed.length > sliceIndex ? `Consolation Prize: ${this.completed.slice(sliceIndex).map(e => Chat.escapeHTML(e.name)).join(', ')}<br />` : ''}<br />` +
-				`<details style="cursor: pointer;"><summary>Solution: </summary><br />${this.questions.map((q, i) => `${i + 1}) ${Chat.parseText(q.hint)} <span style="color: lightgreen">[<em>${Chat.escapeHTML(q.answer.join(' / '))}</em>]</span>`).join("<br />")}</details>`
+				`${this.completed.slice(0, sliceIndex).map((p, i) => `${formatOrder(i + 1)} place: <em>${Chat.escapeHTML(p.name)}</em> <span style="color: lightgreen;">[${p.time}]</span>.<br />`).join("")}${this.completed.length > sliceIndex ? `Consolation Prize: ${this.completed.slice(sliceIndex).map(e => `<em>${Chat.escapeHTML(e.name)}</em> <span style="color: lightgreen;">[${e.time}]</span>`).join(', ')}<br />` : ''}<br />` +
+				`<details style="cursor: pointer;"><summary>Solution: </summary><br />${this.questions.map((q, i) => `${i + 1}) ${Chat.formatText(q.hint)} <span style="color: lightgreen">[<em>${Chat.escapeHTML(q.answer.join(' / '))}</em>]</span>`).join("<br />")}</details>`
 			);
 
 			if (this.parentGame) this.parentGame.onEndEvent();
@@ -400,7 +418,7 @@ class ScavengerHunt extends Rooms.RoomGame {
 			if (this.parentGame) this.parentGame.onEndEvent();
 			this.tryRunQueue(this.room.id);
 		}
-
+		if (this.parentGame) this.parentGame.onAfterEndHunt();
 		this.destroy();
 	}
 
@@ -417,15 +435,15 @@ class ScavengerHunt extends Rooms.RoomGame {
 			PlayerLeaderboard.addPoints(id, 'join', 1, true);
 		}
 		if (this.gameType !== 'practice') {
-			for (let i = 0; i < this.hosts.length; i++) {
-				HostLeaderboard.addPoints(this.hosts[i].name, 'points', 1, this.hosts[i].noUpdate).write();
+			for (const host of this.hosts) {
+				HostLeaderboard.addPoints(host.name, 'points', 1, host.noUpdate).write();
 			}
 		}
 		PlayerLeaderboard.write();
 	}
 
 	tryRunQueue(roomid) {
-		if (this.parentGame) return; // don't run the queue for child games.
+		if (this.parentGame || this.room.scavQueueDisabled) return; // don't run the queue for child games.
 		// prepare the next queue'd game
 		if (this.room.scavQueue && this.room.scavQueue.length) {
 			setTimeout(() => {
@@ -433,17 +451,18 @@ class ScavengerHunt extends Rooms.RoomGame {
 				if (!room || room.game || !room.scavQueue.length) return;
 
 				let next = room.scavQueue.shift();
+				let duration = room.defaultScavTimer || DEFAULT_TIMER_DURATION;
 				room.game = new ScavengerHunt(room, {userid: next.staffHostId, name: next.staffHostName}, next.hosts, false, next.questions);
-				room.game.setTimer(120); // auto timer of 2 hours for queue'd games.
+				room.game.setTimer(duration); // auto timer for queue'd games.
 
-				room.add(`|c|~|[ScavengerManager] A scavenger hunt by ${Chat.toListString(next.hosts.map(h => h.name))} has been automatically started. It will automatically end in 2 hours.`).update(); // highlight the users with "hunt by"
+				room.add(`|c|~|[ScavengerManager] A scavenger hunt by ${Chat.toListString(next.hosts.map(h => h.name))} has been automatically started. It will automatically end in ${duration} minutes.`).update(); // highlight the users with "hunt by"
 
 				// update the saved queue.
 				if (room.chatRoomData) {
 					room.chatRoomData.scavQueue = room.scavQueue;
 					Rooms.global.writeChatRoomData();
 				}
-			}, 1.5 * 60000); // 1.5 minute cooldown
+			}, 2 * 60000); // 2 minute cooldown
 		}
 	}
 
@@ -476,9 +495,10 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 			// notify staff
 			let staffMsg = `(${player.name} has been caught trying to do their own hunt.)`;
-			this.room.sendModCommand(staffMsg);
-			this.room.logEntry(staffMsg);
-			this.room.modlog(staffMsg);
+			let logMsg = `([${player.userid}] has been caught trying to do their own hunt.)`;
+			this.room.sendMods(staffMsg);
+			this.room.roomlog(staffMsg);
+			this.room.modlog(`(${this.room.id}) ${logMsg}`);
 
 			PlayerLeaderboard.addPoints(player.name, 'infraction', 1);
 			player.infracted = true;
@@ -491,9 +511,11 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 			// notify staff
 			let staffMsg = `(${player.name} has been caught attempting a hunt with ${uniqueConnections} connections on the account. The user has also been given 1 infraction point on the player leaderboard.)`;
-			this.room.sendModCommand(staffMsg);
-			this.room.logEntry(staffMsg);
-			this.room.modlog(staffMsg);
+			let logMsg = `([${player.userid}] has been caught attempting a hunt with ${uniqueConnections} connections on the account. The user has also been given 1 infraction point on the player leaderboard.)`;
+
+			this.room.sendMods(staffMsg);
+			this.room.roomlog(staffMsg);
+			this.room.modlog(`(${this.room.id}) ${logMsg}`);
 
 			PlayerLeaderboard.addPoints(player.name, 'infraction', 1);
 			player.infracted = true;
@@ -503,6 +525,8 @@ class ScavengerHunt extends Rooms.RoomGame {
 	eliminate(userid) {
 		if (!(userid in this.players)) return false;
 		let player = this.players[userid];
+
+		if (player.completed) return true; // do not remove players that have completed - they should still get to see the answers
 
 		player.destroy();
 		delete this.players[userid];
@@ -519,7 +543,8 @@ class ScavengerHunt extends Rooms.RoomGame {
 
 		let filtered = this.questions.some(q => {
 			return q.answer.some(a => {
-				let md = Math.ceil((a.length - 3) / FILTER_LENIENCY);
+				a = toId(a);
+				let md = Math.ceil((a.length - 5) / FILTER_LENIENCY);
 				if (Dex.levenshtein(msgId, a, md) <= md) return true;
 				return false;
 			});
@@ -555,13 +580,15 @@ class ScavengerHunt extends Rooms.RoomGame {
 		if (questionArray.length % 2 === 1) return {err: "Your final question is missing an answer"};
 		if (questionArray.length < 6) return {err: "You must have at least 3 hints and answers"};
 
-		for (let i = 0; i < questionArray.length; i++) {
+		for (let [i, question] of questionArray.entries()) {
 			if (i % 2) {
-				questionArray[i] = questionArray[i].split(';').map(p => p.trim());
-				if (!questionArray[i].length || questionArray[i].some(a => !toId(a))) return {err: "Empty answer - only alphanumeric characters will count in answers."};
+				question = question.split(';').map(p => p.trim());
+				questionArray[i] = question;
+				if (!question.length || question.some(a => !toId(a))) return {err: "Empty answer - only alphanumeric characters will count in answers."};
 			} else {
-				questionArray[i] = questionArray[i].trim();
-				if (!questionArray[i]) return {err: "Empty question."};
+				question = question.trim();
+				questionArray[i] = question;
+				if (!question) return {err: "Empty question."};
 			}
 		}
 
@@ -595,7 +622,7 @@ class ScavengerHuntPlayer extends Rooms.RoomGamePlayer {
 
 	onNotifyChange(num) {
 		if (num === this.currentQuestion) {
-			this.sendRoom(`|raw|<strong>The hint has been changed to:</strong> ${Chat.parseText(this.game.questions[num].hint)}`);
+			this.sendRoom(`|raw|<strong>The hint has been changed to:</strong> ${Chat.formatText(this.game.questions[num].hint)}`);
 		}
 	}
 
@@ -640,8 +667,8 @@ let commands = {
 	 * --------------
 	 * Individual game commands for each Scavenger Game
 	 */
-	 game: 'games',
-	 games: {
+	game: 'games',
+	games: {
 		knockoutgames: 'kogames',
 		kogames: function (target, room, user) {
 			if (room.id !== 'scavengers') return this.errorReply("Scavenger games can only be created in the scavengers room.");
@@ -660,6 +687,7 @@ let commands = {
 
 				room.game = new ScavengerGames.JumpStart(room);
 				room.game.announce("A new Jump Start game has been started!");
+				this.sendReply('Please use /starthunt to set the first hunt.');
 			},
 
 			set: function (target, room, user) {
@@ -667,7 +695,7 @@ let commands = {
 				if (!this.can('mute', null, room)) return false;
 				if (!room.game || room.game.gameid !== "jumpstart") return this.errorReply("There is no Jump Start game currently running.");
 
-				let error = room.game.setJumpStart(target.split(', '));
+				let error = room.game.setJumpStart(target.split(','));
 				if (error) return this.errorReply(error);
 			},
 		},
@@ -691,6 +719,31 @@ let commands = {
 			room.game.announce("A new Point Rally game has been started!");
 		},
 
+		incog: 'incognito',
+		incognitomode: 'incognito',
+		incognito: function (target, room, user) {
+			if (room.id !== 'scavengers') return this.errorReply("Scavenger games can only be created in the scavengers room.");
+			if (!this.can('mute', null, room)) return false;
+			if (room.game) return this.errorReply(`There is already a game in this room - ${room.game.title}.`);
+
+			let [details, hostsArray, ...params] = target.split('|'), blind, official;
+			details = details.split(' ').map(toId);
+			if (details.includes('blind')) blind = true;
+			if (details.includes('official')) official = true;
+
+			if (!official && !blind) {
+				params = [hostsArray, ...params];
+				hostsArray = details.join(' ');
+			}
+
+			let hosts = ScavengerHunt.parseHosts(hostsArray.split(/[,;]/), room, official);
+			if (!hosts) return this.errorReply("The user(s) you specified as the host is not online, or is not in the room.");
+
+			params = ScavengerHunt.parseQuestions(params);
+			if (params.err) return this.errorReply(params.err);
+
+			room.game = new ScavengerGames.Incognito(room, blind, official, user, hosts, params.result);
+		},
 		/**
 		 * General game commands
 		 */
@@ -698,7 +751,8 @@ let commands = {
 			if (!this.can('mute', null, room)) return false;
 			if (!room.game || !room.game.scavParentGame) return this.errorReply(`There is no scavenger game currently running.`);
 
-			this.privateModCommand(`The ${room.game.title} has been forcibly ended by ${user.name}.`);
+			this.privateModAction(`The ${room.game.title} has been forcibly ended by ${user.name}.`);
+			this.modlog('SCAVENGER', null, 'ended the hunt');
 			room.game.announce(`The ${room.game.title} has been forcibly ended.`);
 			room.game.destroy();
 		},
@@ -712,7 +766,8 @@ let commands = {
 
 			let success = room.game.eliminate(targetId);
 			if (success) {
-				this.addModCommand(`User '${targetId}' has been kicked from the ${room.game.title}.`);
+				this.addModAction(`User '${targetId}' has been kicked from the ${room.game.title}.`);
+				this.modlog('SCAVENGERS', target, `kicked from the ${room.game.title}`);
 			} else {
 				this.errorReply(`Unable to kick user '${targetId}'.`);
 			}
@@ -756,7 +811,7 @@ let commands = {
 		if (room.id !== 'scavengers') return this.errorReply("Scavenger hunts can only be created in the scavengers room.");
 		if (!this.can('mute', null, room)) return false;
 		if (room.game && !room.game.scavParentGame) return this.errorReply(`There is already a game in this room - ${room.game.title}.`);
-
+		if (!cmd.includes('official') && !cmd.includes('practice') && room.scavQueue.length && !(room.game && room.scavParentGame)) return this.errorReply("There are currently hunts in the queue! If you would like to start the hunt anyways, use /forcestarthunt.");
 		let gameType = cmd.includes('official') ? 'official' : cmd.includes('practice') ? 'practice' : null;
 
 		let [hostsArray, ...params] = target.split('|');
@@ -772,15 +827,39 @@ let commands = {
 		} else {
 			room.game = new ScavengerHunt(room, user, hosts, gameType, params.result);
 		}
-		this.privateModCommand(`(A new scavenger hunt was created by ${user.name}.)`);
+		this.privateModAction(`(A new scavenger hunt was created by ${user.name}.)`);
+		this.modlog('SCAV NEW', null, `${gameType ? gameType.toUpperCase() : ''}: creators - ${hosts.map(h => h.userid)}`);
 	},
 
 	status: function (target, room, user) {
 		if (!room.game || !room.game.scavGame) return this.errorReply(`There is no scavenger game currently running.`);
 
 		let game = room.game.childGame || room.game;
-		let elapsed = Date.now() - game.startTime;
-		this.sendReplyBox(`The current ${game.gameType ? `<em>${game.gameType}</em> ` : ""}scavenger hunt by <em>${Chat.escapeHTML(Chat.toListString(game.hosts.map(h => h.name)))}${(game.hosts.some(h => h.userid === game.staffHostId) ? '' : ` (started by - ${Chat.escapeHTML(game.staffHostName)})`)}</em> has been up for: ${Chat.toDurationString(elapsed, {hhmmss: true})}<br />Completed (${game.completed.length}): ${game.completed.map(u => Chat.escapeHTML(u.name)).join(', ')}<br />`);
+		if (!('questions' in game)) return this.errorReply('There is currently no hunt going on.');
+
+		const elapsedMsg = Chat.toDurationString(Date.now() - game.startTime, {hhmmss: true});
+		const gameTypeMsg = game.gameType ? `<em>${game.gameType}</em> ` : '';
+		const hostersMsg = Chat.toListString(game.hosts.map(h => h.name));
+		const hostMsg = game.hosts.some(h => h.userid === game.staffHostId) ? '' : Chat.html` (started by - ${game.staffHostName})`;
+		const finishers = Chat.html`${game.completed.map(u => u.name).join(', ')}`;
+		const buffer = `<div class="infobox" style="margin-top: 0px;">The current ${gameTypeMsg}scavenger hunt by <em>${hostersMsg}${hostMsg}</em> has been up for: ${elapsedMsg}<br />${!game.timerEnd ? 'The timer is currently off.' : `The hunt ends in: ${Chat.toDurationString(game.timerEnd - Date.now(), {hhmmss: true})}`}<br />Completed (${game.completed.length}): ${finishers}</div>`;
+
+		if (game.hosts.some(h => h.userid === user.userid) || game.staffHostId === user.userid) {
+			let str = `<div class="ladder" style="overflow-y: scroll; max-height: 300px;"><table style="width: 100%"><th><b>Question</b></th><th><b>Users on this Question</b></th>`;
+			for (let i = 0; i < game.questions.length; i++) {
+				let questionNum = i + 1;
+				let players = Object.values(game.players).filter(player => player.currentQuestion === i && !player.completed);
+				if (!players.length) {
+					str += `<tr><td>${questionNum}</td><td>None</td>`;
+				} else {
+					str += Chat.html`<tr><td>${questionNum}</td><td>${players.map(pl => pl.name).join(", ")}`;
+				}
+			}
+			let completed = game.preCompleted ? game.preCompleted : game.completed;
+			str += Chat.html`<tr><td>Completed</td><td>${completed.length ? completed.map(pl => pl.name).join(", ") : 'None'}`;
+			return this.sendReply(`|raw|${str}</table></div>${buffer}`);
+		}
+		this.sendReply(`|raw|${buffer}`);
 	},
 
 	hint: function (target, room, user) {
@@ -796,7 +875,28 @@ let commands = {
 		let message = `The scavenger timer has been ${(result === 'off' ? "turned off" : `set to ${result} minutes`)}`;
 
 		room.add(message + '.');
-		this.privateModCommand(`(${message} by ${user.name}.)`);
+		this.privateModAction(`(${message} by ${user.name}.)`);
+		this.modlog('SCAV TIMER', null, (result === 'off' ? 'OFF' : `${result} minutes`));
+	},
+
+	inherit: function (target, room, user) {
+		if (!this.can('mute', null, room)) return false;
+		if (!room.game || !room.game.scavGame) return this.errorReply(`There is no scavenger game currently running.`);
+
+		let game = room.game.childGame || room.game;
+		if (!('questions' in game)) return this.errorReply('There is currently no hunt going on.');
+
+		if (game.staffHostId === user.userid) return this.errorReply('You already have staff permissions for this hunt.');
+
+		game.staffHostId = '' + user.userid;
+		game.staffHostName = '' + user.name;
+
+		// clear user's game progress and prevent user from ever entering again
+		game.eliminate(user.userid);
+		game.cacheUserIps(user);
+
+		this.privateModAction(`(${user.name} has inherited staff permissions for the current hunt.)`);
+		this.modlog('SCAV INHERIT');
 	},
 
 	reset: function (target, room, user) {
@@ -804,31 +904,37 @@ let commands = {
 		if (!room.game || !room.game.scavGame) return this.errorReply(`There is no scavenger game currently running.`);
 
 		room.game.onEnd(true, user);
-		this.privateModCommand(`(${user.name} has reset the scavenger hunt.)`);
+		this.privateModAction(`(${user.name} has reset the scavenger hunt.)`);
+		this.modlog('SCAV RESET');
 	},
 
 	forceend: 'end',
 	end: function (target, room, user) {
 		if (!this.can('mute', null, room)) return false;
 		if (!room.game || !room.game.scavGame) return this.errorReply(`There is no scavenger game currently running.`);
+		if (room.game.scavParentGame && !room.game.childGame) return this.parse('/scav games end');
 
-		let completed = room.game.scavParentGame ? room.game.game.completed : room.game.completed;
+		let game = room.game.childGame || room.game;
+		let completed = game.preCompleted ? game.preCompleted : game.completed;
+
 		if (!this.cmd.includes('force')) {
 			if (!completed.length) {
 				return this.errorReply('No one has finished the hunt yet.  Use /forceendhunt if you want to end the hunt and reveal the answers.');
 			}
 		} else if (completed.length) {
-			return this.errorReply(`This hunt has ${completed.length} finisher${Chat.plural(completed.length)}; use /endhunt`);
+			return this.errorReply(`This hunt has ${Chat.count(completed, "finishers")}; use /endhunt`);
 		}
 
 		room.game.onEnd(null, user);
-		this.privateModCommand(`(${user.name} has ended the scavenger hunt.)`);
+		this.privateModAction(`(${user.name} has ended the scavenger hunt.)`);
+		this.modlog('SCAV END');
 	},
 
 	viewhunt: function (target, room, user) {
 		if (!room.game || !room.game.scavGame) return this.errorReply(`There is no scavenger game currently running.`);
 
 		let game = room.game.childGame || room.game;
+		if (!('onViewHunt' in game)) return this.errorReply('There is currently no hunt to be viewed.');
 
 		game.onViewHunt(user);
 	},
@@ -852,7 +958,10 @@ let commands = {
 
 		let game = room.game.childGame || room.game;
 		let success = game.eliminate(null, targetId);
-		if (success) return this.privateModCommand(`(${user.name} has kicked '${targetId}' from the scavenger hint.)`);
+		if (success) {
+			this.modlog('SCAV KICK', targetId);
+			return this.privateModAction(`(${user.name} has kicked '${targetId}' from the scavenger hunt.)`);
+		}
 		this.errorReply(`Unable to kick '${targetId}' from the scavenger hunt.`);
 	},
 
@@ -875,7 +984,7 @@ let commands = {
 		if (!room.scavQueue) room.scavQueue = [];
 
 		room.scavQueue.push({hosts: hosts, questions: params.result, staffHostId: user.userid, staffHostName: user.name});
-		this.privateModCommand(`(${user.name} has added a scavenger hunt to the queue.)`);
+		this.privateModAction(`(${user.name} has added a scavenger hunt to the queue.)`);
 
 		if (room.chatRoomData) {
 			room.chatRoomData.scavQueue = room.scavQueue;
@@ -891,8 +1000,8 @@ let commands = {
 		if (!room.scavQueue || isNaN(id) || id < 0 || id >= room.scavQueue.length) return false; // this command should be using the display to manage anyways.
 
 		let removed = room.scavQueue.splice(id, 1)[0];
-		this.privateModCommand(`(${user.name} has removed a scavenger hunt by [${removed.hosts.map(u => u.name).join(", ")}] from the queue.)`);
-		this.sendReply(`|uhtmlchange|scav-queue|${formatQueue(room.scavQueue, user)}`);
+		this.privateModAction(`(${user.name} has removed a scavenger hunt created by [${removed.hosts.map(u => u.userid).join(", ")}] from the queue.)`);
+		this.sendReply(`|uhtmlchange|scav-queue|${formatQueue(room.scavQueue, user, room)}`);
 
 		if (room.chatRoomData) {
 			room.chatRoomData.scavQueue = room.scavQueue;
@@ -904,9 +1013,7 @@ let commands = {
 		if (room.id !== 'scavengers') return this.errorReply("This command can only be used in the scavengers room.");
 		if (!this.can('mute', null, room)) return false;
 
-		if (!room.scavQueue || !room.scavQueue.length) return this.sendReplyBox("The scavenger hunt queue is currently empty.");
-
-		this.sendReply(`|uhtml|scav-queue|${formatQueue(room.scavQueue, user)}`);
+		this.sendReply(`|uhtml|scav-queue|${formatQueue(room.scavQueue, user, room)}`);
 	},
 
 	next: function (target, room, user) {
@@ -923,13 +1030,50 @@ let commands = {
 		let next = room.scavQueue.splice(target, 1)[0]; // returns [ hunt ]
 		room.game = new ScavengerHunt(room, {userid: next.staffHostId, name: next.staffHostName}, next.hosts, false, next.questions);
 
-		if (target) this.sendReply(`|uhtmlchange|scav-queue|${formatQueue(room.scavQueue, user)}`);
+		if (target) this.sendReply(`|uhtmlchange|scav-queue|${formatQueue(room.scavQueue, user, room)}`);
+		this.modlog('SCAV NEW', null, `from queue: creators - ${next.hosts.map(h => h.userid)}`);
 
 		// update the saved queue.
 		if (room.chatRoomData) {
 			room.chatRoomData.scavQueue = room.scavQueue;
 			Rooms.global.writeChatRoomData();
 		}
+	},
+
+	enablequeue: 'disablequeue',
+	disablequeue: function (target, room, user) {
+		if (room.id !== 'scavengers') return this.errorReply("This command can only be used in the scavengers room.");
+		if (!this.can('mute', null, room)) return;
+
+		const state = this.cmd === 'disablequeue';
+		if ((room.scavQueueDisabled || false) === state) return this.errorReply(`The queue is already ${state ? 'disabled' : 'enabled'}.`);
+
+		room.scavQueueDisabled = state;
+		if (room.chatRoomData) {
+			room.chatRoomData.scavQueueDisabled = room.scavQueueDisabled;
+			Rooms.global.writeChatRoomData();
+		}
+		this.sendReply(`|uhtmlchange|scav-queue|${formatQueue(room.scavQueue, user, room)}`);
+		this.privateModAction(`(The queue has been ${state ? 'disabled' : 'enabled'} by ${user.name}.)`);
+		this.modlog('SCAV QUEUE', null, (state ? 'disabled' : 'enabled'));
+	},
+
+	defaulttimer: function (target, room, user) {
+		if (room.id !== 'scavengers') return this.errorReply("This command can only be used in the scavengers room.");
+		if (!this.can('declare', null, room)) return;
+
+		if (!target) return this.sendReply(`The default scavenger timer is currently set at: ${room.defaultScavTimer || DEFAULT_TIMER_DURATION} minutes.`);
+		const duration = parseInt(target);
+
+		if (!duration || duration < 0) return this.errorReply('The default timer must be an integer greater than zero, in minutes.');
+
+		room.defaultScavTimer = duration;
+		if (room.chatRoomData) {
+			room.chatRoomData.defaultScavTimer = room.defaultScavTimer;
+			Rooms.global.writeChatRoomData();
+		}
+		this.privateModAction(`(The default scavenger timer has been set to ${duration} minutes by ${user.name}.)`);
+		this.modlog('SCAV DEFAULT TIMER', null, `${duration} minutes`);
 	},
 
 	/**
@@ -948,7 +1092,8 @@ let commands = {
 
 		Leaderboard.addPoints(targetId, 'points', points, true).write();
 
-		this.privateModCommand(`(${targetId} was given ${points} points on the monthly scavengers ladder by ${user.name}.)`);
+		this.privateModAction(`(${targetId} was given ${points} points on the monthly scavengers ladder by ${user.name}.)`);
+		this.modlog('SCAV ADDPOINTS', targetId, points);
 	},
 
 	removepoints: function (target, room, user) {
@@ -964,7 +1109,8 @@ let commands = {
 
 		Leaderboard.addPoints(targetId, 'points', -points, true).write();
 
-		this.privateModCommand(`(${user.name} has taken ${points} points from ${targetId} on the monthly scavengers ladder.)`);
+		this.privateModAction(`(${user.name} has taken ${points} points from ${targetId} on the monthly scavengers ladder.)`);
+		this.modlog('SCAV REMOVEPOINTS', targetId, points);
 	},
 
 	resetladder: function (target, room, user) {
@@ -973,7 +1119,8 @@ let commands = {
 
 		Leaderboard.reset().write();
 
-		this.privateModCommand(`(${user.name} has reset the monthly scavengers ladder.)`);
+		this.privateModAction(`(${user.name} has reset the monthly scavengers ladder.)`);
+		this.modlog('SCAV RESETLADDER');
 	},
 	top: 'ladder',
 	ladder: function (target, room, user) {
@@ -1023,7 +1170,8 @@ let commands = {
 			room.chatRoomData.blitzPoints = room.blitzPoints;
 			Rooms.global.writeChatRoomData();
 		}
-		this.privateModCommand(`(${user.name} has set the points awarded for blitz to ${blitzPoints}.)`);
+		this.privateModAction(`(${user.name} has set the points awarded for blitz to ${blitzPoints}.)`);
+		this.modlog('SCAV BLITZ', null, blitzPoints);
 	},
 
 	setpoints: function (target, room, user) {
@@ -1043,7 +1191,9 @@ let commands = {
 			room.chatRoomData.winPoints = room.winPoints;
 			Rooms.global.writeChatRoomData();
 		}
-		this.privateModCommand(`(${user.name} has set the points awarded for winning an official scavenger hunt to - ${winPoints.map((p, i) => `(${(i + 1)}) ${p}`).join(', ')})`);
+		const pointsDisplay = winPoints.map((p, i) => `(${(i + 1)}) ${p}`).join(', ');
+		this.privateModAction(`(${user.name} has set the points awarded for winning an official scavenger hunt to - ${pointsDisplay})`);
+		this.modlog('SCAV SETPOINTS', null, pointsDisplay);
 	},
 
 	/**
@@ -1058,13 +1208,15 @@ let commands = {
 			if (!this.can('declare', null, room)) return false;
 			HostLeaderboard.softReset().then(() => {
 				HostLeaderboard.write();
-				this.privateModCommand(`(${user.name} has reset the host log leaderboard into the next month.)`);
+				this.privateModAction(`(${user.name} has reset the host log leaderboard into the next month.)`);
+				this.modlog('SCAV HUNTLOGS', null, 'RESET');
 			});
 			return;
 		} else if (target === 'HARD RESET') {
 			if (!this.can('declare', null, room)) return false;
 			HostLeaderboard.hardReset().write();
-			this.privateModCommand(`(${user.name} has hard reset the host log leaderboard.)`);
+			this.privateModAction(`(${user.name} has hard reset the host log leaderboard.)`);
+			this.modlog('SCAV HUNTLOGS', null, 'HARD RESET');
 			return;
 		}
 
@@ -1100,13 +1252,15 @@ let commands = {
 			if (!this.can('declare', null, room)) return false;
 			PlayerLeaderboard.softReset().then(() => {
 				PlayerLeaderboard.write();
-				this.privateModCommand(`(${user.name} has reset the player log leaderboard into the next month.)`);
+				this.privateModAction(`(${user.name} has reset the player log leaderboard into the next month.)`);
+				this.modlog('SCAV PLAYLOGS', null, 'RESET');
 			});
 			return;
 		} else if (target === 'HARD RESET') {
 			if (!this.can('declare', null, room)) return false;
 			PlayerLeaderboard.hardReset().write();
-			this.privateModCommand(`(${user.name} has hard reset the player log leaderboard.)`);
+			this.privateModAction(`(${user.name} has hard reset the player log leaderboard.)`);
+			this.modlog('SCAV PLAYLOGS', null, 'HARD RESET');
 			return;
 		}
 
@@ -1156,7 +1310,8 @@ let commands = {
 
 		PlayerLeaderboard.addPoints(targetId, 'infraction', change, true).write();
 
-		this.privateModCommand(`(${user.name} has ${(change > 0 ? 'given' : 'taken')} one infraction point ${(change > 0 ? 'to' : 'from')} '${targetId}'.)`);
+		this.privateModAction(`(${user.name} has ${(change > 0 ? 'given' : 'taken')} one infraction point ${(change > 0 ? 'to' : 'from')} '${targetId}'.)`);
+		this.modlog(`SCAV ${this.cmd.toUpperCase()}`, user);
 	},
 };
 
@@ -1169,6 +1324,7 @@ exports.commands = {
 	scavenge: commands.guess,
 	startpracticehunt: 'starthunt',
 	startofficialhunt: 'starthunt',
+	forcestarthunt: 'starthunt',
 	starthunt: commands.create,
 	joinhunt: commands.join,
 	leavehunt: commands.leave,
@@ -1177,6 +1333,7 @@ exports.commands = {
 	endhunt: commands.end,
 	edithunt: commands.edithunt,
 	viewhunt: commands.viewhunt,
+	inherithunt: commands.inherit,
 	scavengerstatus: commands.status,
 	scavengerhint: commands.hint,
 
@@ -1222,6 +1379,7 @@ exports.commands = {
 			"- /resethunt - resets the current scavenger hunt without revealing the hints and answers. (Requires: % @ * # & ~)",
 			"- /endhunt - ends the current scavenger hunt and announces the winners and the answers. (Requires: % @ * # & ~)",
 			"- /viewhunt - views the current scavenger hunt.  Only the user who started the hunt can use this command. Only the host(s) can view the hunt.",
+			"- /inherithunt - becomes the staff host, gaining staff permissions to the current hunt. (Requires: % @ * # & ~)",
 			"- /scav timer <em>[minutes | off]</em> - sets a timer to automatically end the current hunt. (Requires: % @ * # & ~)",
 			"- /scav addpoints <em>[user], [amount]</em> - gives the user the amount of scavenger points towards the monthly ladder. (Requires: % @ * # & ~)",
 			"- /scav removepoints <em>[user], [amount]</em> - takes the amount of scavenger points from the user towards the monthly ladder. (Requires: % @ * # & ~)",
@@ -1230,6 +1388,7 @@ exports.commands = {
 			"- /scav setblitz [value] ... - sets the blitz award to `value`. Use `/scav setblitz` to view what the current blitz value is. (Requires: # & ~)",
 			"- /scav queue <em>[host] | [hint] | [answer] | [hint] | [answer] | [hint] | [answer] | ...</em> - queues a scavenger hunt to be started after the current hunt is finished. (Requires: % @ * # & ~)",
 			"- /scav viewqueue - shows the list of queued scavenger hunts to be automatically started, as well as the option to remove hunts from the queue. (Requires: % @ * # & ~)",
+			"- /scav defaulttimer [value] - sets the default timer applied to automatically started hunts from the queue.",
 			"- /nexthunt - starts the next hunt in the queue.",
 		].join('<br />');
 
