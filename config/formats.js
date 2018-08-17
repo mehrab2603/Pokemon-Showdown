@@ -1609,7 +1609,7 @@ let Formats = [
 		],
         searchShow: true,
 		mod: 'bdtheoryusum',
-        ruleset: ['Pokemon', 'Standard', 'Team Preview', 'BD Theorymon New Clause'],
+        ruleset: ['Pokemon', 'Standard', 'Team Preview', 'BD Theorymon USUM Clause'],
 		banlist: ['Uber', 'Arena Trap', 'Power Construct', 'Shadow Tag', 'Baton Pass'],
 	}
 ];
