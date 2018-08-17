@@ -854,7 +854,7 @@ let BattleFormats = {
 	    onValidateTeam: function (team, format) {
 	    	let BOTList = [];
 	        let TMcount = 0;
-	        let MinNumberOfMon = 2;
+	        let MinNumberOfMon = 0;
 	        for (let i = 0; i < team.length; i++) {
 	            if (BOTList.indexOf(team[i].species)>=0)TMcount++;
 	        }
