@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 // Note: This is the list of formats
 // The rules that formats use are stored in data/rulesets.js
@@ -1808,7 +1808,45 @@ let Formats = [
 		mod: 'bdtheoryusum',
         ruleset: ['Pokemon', 'Standard', 'Team Preview', 'BD Theorymon USUM Clause'],
 		banlist: ['Uber', 'Arena Trap', 'Power Construct', 'Shadow Tag', 'Baton Pass'],
-	}
+	},
+
+	// [Gen 7] BD Battlers Ultimate Arena
+	///////////////////////////////////////////////////////////////////
+	{
+		section: "BD Tiers",
+		column: 2,
+	},
+	{
+		name: "[Gen 7] BD Battlers Ultimate Arena",
+		desc: `FIGHT YOUR FELLOW BATTLERS`,
+		threads: [
+			
+		],
+		mod: 'bdarena',
+		team: 'randomarena',
+		ruleset: ['HP Percentage Mod', 'Cancel Mod', 'Sleep Clause Mod'],
+		onBegin: function () {
+			this.add('raw|FIGHT YOUR FELLOW BATTLERS <b>BEGIN</b>!!');
+			this.add('message', 'GO!');
+			this.add(`raw|<div class='broadcast-green'><b>Yes it's back, sort of<br />Check out the <a href="https://www.facebook.com/groups/bangladeshi.pokemon.battlers/" target="_blank">Group</a> and find out!</b></div>`);
+		},
+		onSwitchIn: function (pokemon) {
+			let name = toId(pokemon.illusion ? pokemon.illusion.name : pokemon.name);
+			if (this.getTemplate(name).exists) {
+				// Certain pokemon have volatiles named after their speciesid
+				// To prevent overwriting those, and to prevent accidentaly leaking
+				// that a pokemon is on a team through the onStart even triggering
+				// at the start of a match, users with pokemon names will need their
+				// statuse's to end in "user".
+				name += 'user';
+			}
+			// Add the mon's status effect to it as a volatile.
+			let status = this.getEffect(name);
+			if (status && status.exists) {
+				pokemon.addVolatile(name, pokemon);
+			}
+		},
+	},
 ];
 
 exports.Formats = Formats;
