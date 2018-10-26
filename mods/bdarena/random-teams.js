@@ -18,8 +18,8 @@
 
 const RandomTeams = require('../../data/random-teams');
 
-class RandomarenaTeams extends RandomTeams {
-	randomarenaTeam() {
+class RandomBDarenaTeams extends RandomTeams {
+	randomBDarenaTeam() {
 		/** @type {PokemonSet[]} */
 		let team = [];
 		/** @type {SSBSets} */
@@ -42,8 +42,8 @@ class RandomarenaTeams extends RandomTeams {
 			*/
 			// Please keep sets organized alphabetically based on staff member name!
 			'Tonmoy': {
-				species: 'Machamp', ability: 'Dry Skin', item: 'Leftovers', gender: 'M',
-				moves: ['Eartquake', 'Drain Punch', 'Splash'],
+				species: 'Machamp', ability: 'Mold Breaker', item: 'Leftovers', gender: 'M',
+				moves: ['Drain Punch', 'Earthquake', 'Morning Sun'],
 				signatureMove: 'Noble Howl',
 				evs: {atk: 252, def: 4, spe: 252}, nature: 'Adamant', shiny: true,
 			},
@@ -180,4 +180,4 @@ class RandomarenaTeams extends RandomTeams {
 	}
 }
 
-module.exports = randomarenaTeams;
+module.exports = RandomBDarenaTeams;

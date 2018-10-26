@@ -1823,7 +1823,7 @@ let Formats = [
 			
 		],
 		mod: 'bdarena',
-		team: 'randomarena',
+		team: 'randomBDarena',
 		ruleset: ['HP Percentage Mod', 'Cancel Mod', 'Sleep Clause Mod'],
 		onBegin: function () {
 			this.add('raw|FIGHT YOUR FELLOW BATTLERS <b>BEGIN</b>!!');
