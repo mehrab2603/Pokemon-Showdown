@@ -1791,6 +1791,24 @@ let Formats = [
 		debug: true,
 		ruleset: ['Pokemon', 'HP Percentage Mod', 'Cancel Mod'],
 	},
+
+	// [Gen 7] BD Ou Theorymon
+	///////////////////////////////////////////////////////////////////
+	{
+		section: "BD Tiers",
+		column: 2,
+	},
+	{
+		name: "[Gen 7] BD Ou Theorymon",
+		desc: `Battle with pokemon modified by members of members of Bangladesh Pokemon Battlers`,
+		threads: [
+			
+		],
+        searchShow: true,
+		mod: 'bdtheoryusum',
+        ruleset: ['Pokemon', 'Standard', 'Team Preview', 'BD Theorymon USUM Clause'],
+		banlist: ['Uber', 'Arena Trap', 'Power Construct', 'Shadow Tag', 'Baton Pass'],
+	}
 ];
 
 exports.Formats = Formats;
