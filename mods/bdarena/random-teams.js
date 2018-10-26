@@ -42,76 +42,46 @@ class RandomBDarenaTeams extends RandomTeams {
 			*/
 			// Please keep sets organized alphabetically based on staff member name!
 			'Tonmoy': {
-				species: 'Machamp', ability: 'Mold Breaker', item: 'Leftovers', gender: 'M',
-				moves: ['Drain Punch', 'Earthquake', 'Morning Sun'],
-				signatureMove: 'Noble Howl',
+				species: 'Machamp', ability: 'Dry Skin', item: 'Leftovers', gender: 'M',
+				moves: ['Drain Punch', 'Earthquake', 'Confide'],
+				signatureMove: 'I Like Pie',
 				evs: {atk: 252, def: 4, spe: 252}, nature: 'Adamant', shiny: true,
 			},
-			'5gen': {
-				species: 'Sawsbuck', ability: 'Season\'s Gift', item: 'Heat Rock', gender: 'M',
-				moves: ['Sunny Day', 'Return', 'High Jump Kick'],
-				signatureMove: 'Too Much Saws',
-				evs: {atk: 252, def: 4, spe: 252}, nature: 'Jolly',
+			'Salman': {
+				species: 'Tyranitar', ability: 'Insomnia', item: 'Life Orb', gender: 'M',
+				moves: ['Diamond Storm', 'Knock Off', 'Worry Seed'],
+				signatureMove: 'arik wins lol',
+				evs: {hp:4, atk:252, spe:252}, nature: 'Jolly',
 			},
-			'ACakeWearingAHat': {
-				species: 'Dunsparce', ability: 'Serene Grace', item: 'Leftovers', gender: 'M',
-				moves: ['Headbutt', 'Shadow Strike', 'Roost'],
-				signatureMove: 'Sparce Dance',
-				evs: {hp: 252, def: 4, spe: 252}, nature: 'Jolly',
+			'Muhib': {
+				species: 'Honchkrow', ability: 'Rattled', item: 'Life Orb', gender: 'M',
+				moves: ['Swords Dance', 'Crunch', 'Chatter'],
+				signatureMove: "Perfect Shitpost",
+				evs: {hp:128, atk:252, spe:128}, nature: 'Hasty',
 			},
-			'Aelita': {
-				species: 'Porygon-Z', ability: 'Protean', item: 'Life Orb', gender: 'F',
-				moves: [['Boomburst', 'Moonblast'], 'Blue Flare', 'Chatter'],
-				signatureMove: 'Energy Field',
-				evs: {hp: 4, spa: 252, spe: 252}, ivs: {atk: 0}, nature: 'Modest',
+			'Arifeen': {
+				species: 'Togekiss', ability: 'Super Luck', item: 'Sharp Beak', gender: 'M',
+				moves: ['Aeroblast', 'Moonblast', 'Roost'],
+				signatureMove: 'Andromeda',
+				evs: {spa:252, def:128, spe:128}, nature: 'Modest',
 			},
-			'Akir': {
-				species: 'Parasect', ability: 'Regrowth', item: 'Leftovers', gender: 'M',
-				moves: ['Spore', 'Leech Life', ['Toxic', 'Healing Wish', 'Parting Shot']],
-				signatureMove: 'Compost',
-				evs: {hp: 248, atk: 8, spd: 252}, nature: 'Careful',
+			'Akash': {
+				species: 'Sableye', ability: 'Magic Guard', item: 'Roseli Berry', gender: 'M',
+				moves: ['Foul Play', 'Spectral Thief', 'Lovely Kiss'],
+				signatureMove: 'Mono Ghost',
+				evs: {atk:252, def:4, spe:252}, nature: 'Adamant',
 			},
-			'Amaluna': {
-				species: 'Octillery', ability: 'Neuroforce', item: 'Expert Belt', gender: 'F',
-				moves: ['Surf', 'Fire Blast', 'Freeze-Dry'],
-				signatureMove: 'Turismo Splash',
-				evs: {hp: 252, spa: 252, spd: 4}, ivs: {atk: 0, spe: 0}, nature: 'Quiet',
+			'Shafi': {
+				species: 'Azumarill', ability: 'Cheek Pouch', item: 'Sitrus Berry', gender: 'M',
+				moves: ['Aqua Jet', 'Liquidation', 'Belly Drum'],
+				signatureMove: 'Fair and Roughly',
+				evs: {hp:252, atk:252, spe:4}, nature: 'Adamant',
 			},
-			'Andy >_>': {
-				species: 'Absol', ability: 'Adaptability', item: 'Absolite', gender: 'M',
-				moves: ['Pursuit', 'Destiny Bond', 'Sucker Punch'],
-				signatureMove: 'Pilfer',
-				evs: {atk: 252, def: 4, spe: 252}, nature: 'Adamant',
-			},
-			'ant': {
-				species: 'Durant', ability: 'Flash Fire', item: 'Leftovers', gender: 'F',
-				moves: ['King\'s Shield', 'U-turn', 'Pursuit'],
-				signatureMove: 'TRU ANT',
-				evs: {atk: 252, def: 4, spe: 252}, nature: 'Jolly',
-			},
-			'A Quag to The Past': {
-				species: 'Quagsire', ability: 'Unaware', item: 'Leftovers', gender: 'M',
-				moves: ['Recover', 'Toxic', 'Scald'],
-				signatureMove: 'Murky Ambush',
-				evs: {hp: 252, def: 252, spd: 4}, ivs: {spe: 0}, nature: 'Relaxed',
-			},
-			'Arcticblast': {
-				species: 'Garbodor', ability: 'Analytic', item: 'Assault Vest', gender: 'M',
-				moves: ['Knock Off', 'Earthquake', ['Horn Leech', 'U-turn', 'Avalanche']],
-				signatureMove: 'Trashalanche',
-				evs: {hp: 252, atk: 252, def: 4}, ivs: {spe: 0}, nature: 'Brave',
-			},
-			'Zarel': {
-				species: 'Meloetta', ability: 'Serene Grace', item: '', gender: 'M',
-				moves: ['Lunar Dance', 'Fiery Dance', 'Perish Song', 'Petal Dance', 'Quiver Dance'],
-				signatureMove: 'Relic Song Dance',
-				evs: {hp: 4, atk: 252, spa: 252}, nature: 'Quiet',
-			},
-			'Zyg': {
-				species: 'Zygarde', ability: 'Poison Heal', item: 'Leftovers', gender: 'N',
-				moves: ['Thousand Arrows', 'Stone Edge', 'Coil'],
-				signatureMove: 'The Life of Zyg',
-				evs: {hp: 188, atk: 68, def: 252}, nature: 'Adamant',
+			'Aunim': {
+				species: 'Mr. Mime', ability: 'Truant', item: 'Focus Band', gender: 'M',
+				moves: ['Quiver Dance', 'Baton Pass', 'Moonblast'],
+				signatureMove: 'Amake Diye Ki Hobe',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
 			},
 		};
 		let pool = Object.keys(sets);
