@@ -134,7 +134,7 @@ let BattleMovedex = {
 	// Aunim
 	amakediyekihobe: {
 		accuracy: 90,
-		basePower: 120,
+		basePower: 200,
 		category: "Special",
 		id: "amakediyekihobe",
 		isNonstandard: true,
@@ -153,24 +153,10 @@ let BattleMovedex = {
 			this.add('-anim', source, "Explosion", source);
 			this.add('-anim', source, "Light of Ruin", target);
 		},
-		onAfterMoveSecondarySelf: function (source, target) {
-			let removeTarget = {reflect:1, lightscreen:1, safeguard:1, mist:1, spikes:1, toxicspikes:1, burnspikes:1, stealthrock:1, stickyweb:1};
-			let removeAll = {spikes:1, toxicspikes:1, stealthrock:1, stickyweb:1};
-			for (let targetCondition in removeTarget) {
-				if (target.side.removeSideCondition(targetCondition)) {
-					if (!removeAll[targetCondition]) continue;
-					this.add('-sideend', target.side, this.getEffect(targetCondition).name, '[from] move: Defog', '[of] ' + target);
-				}
-			}
-			for (let sideCondition in removeAll) {
-				if (source.side.removeSideCondition(sideCondition)) {
-					this.add('-sideend', source.side, this.getEffect(sideCondition).name, '[from] move: Defog', '[of] ' + source);
-				}
-			}
-		},
-		selfdestruct: true,
-		secondary: false,
-		target: "allAdjacentFoes",
+		flags: {protect: 1, mirror: 1},
+		selfdestruct: "always",
+		secondary: null,
+		target: "allAdjacent",
 		type: "Psychic",
 	},
 	// Akash
