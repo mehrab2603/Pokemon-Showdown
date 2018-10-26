@@ -845,6 +845,22 @@ let BattleFormats = {
 		desc: "Allows Gen 1 pokemon to have moves from their Gen 2 learnsets",
 		// Implemented in team-validator.js
 	},
+    bdtheorymonusumclause: {
+	    effectType: 'Rule',
+	    name: 'BD Theorymon USUM Clause',
+	    onStart: function () {
+	        this.add('rule', 'BD Theorymon New Clause: A team has to have at least two Pokémon with BD Theorymon New modification');
+	    },
+	    onValidateTeam: function (team, format) {
+	    	let BOTList = [];
+	        let TMcount = 0;
+	        let MinNumberOfMon = 0;
+	        for (let i = 0; i < team.length; i++) {
+	            if (BOTList.indexOf(team[i].species)>=0)TMcount++;
+	        }
+	        if (TMcount < MinNumberOfMon) return ["You have less than 2 Pokémon with BD Theorymon New modification"];
+	    }
+	},
 };
 
 exports.BattleFormats = BattleFormats;
