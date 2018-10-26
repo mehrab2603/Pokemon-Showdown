@@ -88,7 +88,7 @@ let BattleMovedex = {
 		category: "Status",
 		desc: "Boosts the user's Special Attack, Defense, and Speed by one stage.",
 		shortDesc: "+1 spa, def, and spe.",
-		id: "sparcedance",
+		id: "andromeda",
 		name: "Andromeda",
 		isNonstandard: true,
 		pp: 15,
@@ -134,7 +134,7 @@ let BattleMovedex = {
 	// Aunim
 	amakediyekihobe: {
 		accuracy: 90,
-		basePower: 250,
+		basePower: 120,
 		category: "Special",
 		id: "amakediyekihobe",
 		isNonstandard: true,
@@ -175,81 +175,27 @@ let BattleMovedex = {
 	},
 	// Akash
 	monoghost: {
-		accuracy: true,
+		accuracy: 100,
 		basePower: 0,
 		category: "Status",
 		id: "monoghost",
 		isNonstandard: true,
 		isViable: true,
 		name: "Mono Ghost",
-		pp: 2,
+		pp: 10,
 		priority: 0,
-		flags: {mirror: 1, gravity: 1},
-		onHit: function (target, source) {
-			if (this.pseudoWeather['monoground']) {
-				this.removePseudoWeather('monoground', source);
-			} else {
-				this.addPseudoWeather('monoground', source);
-			}
-			let removeTarget = {reflect:1, lightscreen:1, safeguard:1, mist:1, spikes:1, toxicspikes:1, burnspikes:1, stealthrock:1, stickyweb:1};
-			let removeAll = {spikes:1, toxicspikes:1, burnspikes:1, stealthrock:1, stickyweb:1};
-			for (let targetCondition in removeTarget) {
-				let foe = source.side.foe;
-				if (foe.removeSideCondition(targetCondition)) {
-					if (!removeAll[targetCondition]) continue;
-					this.add('-sideend', foe, this.getEffect(targetCondition).name, '[from] move: Defog', '[of] ' + foe.active[0]);
-				}
-			}
-			for (let sideCondition in removeAll) {
-				if (source.side.removeSideCondition(sideCondition)) {
-					this.add('-sideend', source.side, this.getEffect(sideCondition).name, '[from] move: Defog', '[of] ' + source);
-				}
-			}
-		},
-		effect: {
-			duration: 3,
-			onStart: function () {
-				this.add('message', 'All active Pokemon became pure Ghost-type!');
-				for (let s in this.sides) {
-					const thisSide = this.sides[s];
-					for (let p in thisSide.active) {
-						const pokemon = thisSide.active[p];
-						if ((pokemon.types[0] === 'Ghost' && !pokemon.types[1]) || !pokemon.hp) continue;
-						pokemon.setType('Ground', true);
-						this.add('-start', pokemon, 'typechange', 'Ghost');
-					}
-				}
-			},
-			onResidualOrder: 90,
-			onUpdate: function (pokemon) {
-				if ((pokemon.types[0] === 'Ghost' && !pokemon.types[1]) || !pokemon.hp) return;
-				pokemon.setType('Ghost', true);
-				this.add('-start', pokemon, 'typechange', 'Ground');
-			},
-			onSwitchIn: function (pokemon) {
-				if ((pokemon.types[0] === 'Ghost' && !pokemon.types[1]) || !pokemon.hp) return;
-				pokemon.setType('Ground', true);
-				this.add('-start', pokemon, 'typechange', 'Ghost');
-			},
-			onEnd: function () {
-				this.add('message', 'Active Pokemon are no longer forced to be pure Ghost-type.');
-				for (let s in this.sides) {
-					const thisSide = this.sides[s];
-					for (let p in thisSide.active) {
-						const pokemon = thisSide.active[p];
-						if ((pokemon.types[0] === 'Ghost' && !pokemon.types[1]) || !pokemon.hp) continue;
-						pokemon.setType(pokemon.template.types, true);
-						this.add('-end', pokemon, 'typechange');
-					}
-				}
-			},
+		flags: {protect: 1, reflectable: 1, mirror: 1, mystery: 1},
+		onHit: function (target) {
+			if (!target.setType('Ghost')) return false;
+			this.add('-start', target, 'typechange', 'Ghost');
 		},
 		secondary: false,
 		onPrepareHit: function (target, source) {
 			this.attrLastMove('[still]');
-			this.add('-anim', source, "Fissure", source);
+			this.add('-anim', source, "Shadow Sneak", source);
 		},
-		target: "self",
+		boosts: {spe: 2},
+		target: "normal",
 		type: "Ghost",
 	},
 	// Shafi

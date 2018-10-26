@@ -19,7 +19,7 @@ let BattleStatuses = {
 	},
 	*/
 	// Please keep statuses organized alphabetically based on staff member name!
-	'Tonmoy': { // No single quotes causes issues
+	tonmoy: { // No single quotes causes issues
 		noCopy: true,
 		onStart: function () {
 			this.add(`c|Tonmoy|Do you like pie?`);
@@ -31,7 +31,7 @@ let BattleStatuses = {
 			this.add(`c|Tonmoy|Hope you had fun!`);
 		},
 	},
-	'Salman': {
+	salman: {
 		noCopy: true,
 		onStart: function () {
 			this.add(`c|Salman|le goat`);
@@ -43,7 +43,7 @@ let BattleStatuses = {
 			this.add(`c|Salman|lol hax nub`);
 		},
 	},
-	'Muhib': {
+	muhib: {
 		noCopy: true,
 		onStart: function () {
 			this.add(`c|Muhib|Ei group e post dite bole amar permission lage na`);
@@ -55,7 +55,7 @@ let BattleStatuses = {
 			this.add(`c|Muhib|One Piece er spoiler dicchi pm e`);
 		},
 	},
-	'Shafi': {
+	shafi: {
 		noCopy: true,
 		onStart: function () {
 			this.add(`c|Shafi|Wait why am I an Azumarill again`);
