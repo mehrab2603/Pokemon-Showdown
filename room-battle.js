@@ -138,6 +138,9 @@ class BattleTimer {
 		 */
 		this.lastTick = 0;
 
+		/** Debug mode; true to output detailed timer info every tick */
+		this.debug = false;
+
 		this.lastDisabledTime = 0;
 		this.lastDisabledByUser = null;
 
@@ -221,25 +224,27 @@ class BattleTimer {
 		if (this.timer) clearTimeout(this.timer);
 		if (!this.timerRequesters.size) return;
 		const maxTurnTicks = (isFirst ? this.settings.maxFirstTurnTicks : 0) || this.settings.maxPerTurnTicks;
+
+		let perTurnTicks = this.settings.perTurnTicks;
+		if (this.settings.accelerate && perTurnTicks) {
+			// after turn 100ish: 15s/turn -> 10s/turn
+			if (this.battle.requestCount > 200) {
+				perTurnTicks--;
+			}
+			// after turn 200ish: 10s/turn -> 7s/turn
+			if (this.battle.requestCount > 400 && this.battle.requestCount % 2) {
+				perTurnTicks = 0;
+			}
+			// after turn 400ish: 7s/turn -> 6s/turn
+			if (this.battle.requestCount > 800 && this.battle.requestCount % 4) {
+				perTurnTicks = 0;
+			}
+		}
+
 		for (const slotNum of this.ticksLeft.keys()) {
 			const slot = /** @type {PlayerSlot} */ ('p' + (slotNum + 1));
 			const player = this.battle[slot];
 
-			let perTurnTicks = this.settings.perTurnTicks;
-			if (this.settings.accelerate && perTurnTicks) {
-				// after turn 100ish: 15s/turn -> 10s/turn
-				if (this.battle.requestCount > 200) {
-					perTurnTicks--;
-				}
-				// after turn 200ish: 10s/turn -> 7s/turn
-				if (this.battle.requestCount > 400 && this.battle.requestCount % 2) {
-					perTurnTicks = 0;
-				}
-				// after turn 400ish: 7s/turn -> 6s/turn
-				if (this.battle.requestCount > 800 && this.battle.requestCount % 4) {
-					perTurnTicks = 0;
-				}
-			}
 			this.ticksLeft[slotNum] += perTurnTicks;
 			this.turnTicksLeft[slotNum] = Math.min(this.ticksLeft[slotNum], maxTurnTicks);
 
@@ -283,6 +288,10 @@ class BattleTimer {
 					this.battle.room.add(`|inactive|${this.battle.playerNames[slotNum]} has ${ticksLeft * TICK_TIME} seconds left.`).update();
 				}
 			}
+		}
+		if (this.debug) {
+			this.battle.room.add(`||[${this.battle.playerNames[0]} has ${this.turnTicksLeft[0] * TICK_TIME}s this turn / ${this.ticksLeft[0] * TICK_TIME}s total]`);
+			this.battle.room.add(`||[${this.battle.playerNames[0]} has ${this.turnTicksLeft[0] * TICK_TIME}s this turn / ${this.ticksLeft[0] * TICK_TIME}s total]`);
 		}
 		if (!this.checkTimeout()) {
 			this.timer = setTimeout(() => this.nextTick(), TICK_TIME * 1000);
@@ -566,6 +575,13 @@ class Battle {
 		let next;
 		while ((next = await this.stream.read())) {
 			this.receive(next.split('\n'));
+		}
+		if (!this.ended) {
+			this.room.add(`|bigerror|The simulator process has crashed. We've been notified and will fix this ASAP.`);
+			Monitor.crashlog(new Error(`Process disconnected`), `A battle`);
+			this.started = true;
+			this.ended = true;
+			this.checkActive();
 		}
 	}
 	receive(/** @type {string[]} */ lines) {
@@ -905,6 +921,7 @@ class Battle {
 		this[slot] = player;
 		this.playerNames[slotNum] = player.name;
 
+		/**@type {{name: string, avatar: string, team?: string}} */
 		let options = {
 			name: player.name,
 			avatar: '' + user.avatar,
@@ -950,6 +967,7 @@ class Battle {
 	}
 
 	destroy() {
+		this.ended = true;
 		this.stream.destroy();
 		if (this.active) {
 			Rooms.global.battleCount += -1;

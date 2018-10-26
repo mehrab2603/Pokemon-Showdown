@@ -26,11 +26,14 @@ To reload chat commands:
 'use strict';
 /** @typedef {GlobalRoom | GameRoom | ChatRoom} Room */
 
-/** @typedef {(query: string[], user: User, connection?: Connection) => (string | null | void)} PageHandler */
-/** @typedef {{[k: string]: PageHandler}} PageTable */
+/** @typedef {(query: string[], user: User, connection: Connection) => (string | null | void)} PageHandler */
+/** @typedef {{[k: string]: PageHandler | PageTable}} PageTable */
 
 /** @typedef {(this: CommandContext, target: string, room: ChatRoom | GameRoom, user: User, connection: Connection, cmd: string, message: string) => (void)} ChatHandler */
 /** @typedef {{[k: string]: ChatHandler | string | true | string[] | ChatCommands}} ChatCommands */
+
+/** @typedef {(this: CommandContext, message: string, user: User, room: ChatRoom?, connection: Connection, targetUser: User?) => (string | boolean)} ChatFilter */
+/** @typedef {(name: string, user: User) => (string)} NameFilter */
 
 const LINK_WHITELIST = ['*.pokemonshowdown.com', 'psim.us', 'smogtours.psim.us', '*.smogon.com', '*.pastebin.com', '*.hastebin.com'];
 
@@ -45,6 +48,10 @@ const VALID_COMMAND_TOKENS = '/!';
 const BROADCAST_TOKEN = '!';
 
 const FS = require('./lib/fs');
+
+/** @type {(url: string) => Promise<{width: number, height: number}>} */
+// @ts-ignore ignoring until there is a ts typedef available for this module.
+const probe = require('probe-image-size');
 
 let Chat = module.exports;
 
@@ -109,15 +116,22 @@ Chat.multiLinePattern = new PatternTester();
  *********************************************************/
 
 /** @type {ChatCommands} */
+// @ts-ignore
 Chat.baseCommands = undefined;
 /** @type {ChatCommands} */
+// @ts-ignore
 Chat.commands = undefined;
 /** @type {PageTable} */
+// @ts-ignore
+Chat.basePages = undefined;
+/** @type {PageTable} */
+// @ts-ignore
 Chat.pages = undefined;
 
 /*********************************************************
  * Load chat filters
  *********************************************************/
+/**@type {ChatFilter[]} */
 Chat.filters = [];
 /**
  * @param {string} message
@@ -140,6 +154,7 @@ Chat.filter = function (message, user, room, connection, targetUser = null) {
 
 	return message;
 };
+/**@type {NameFilter[]} */
 Chat.namefilters = [];
 /**
  * @param {string} name
@@ -165,8 +180,17 @@ Chat.namefilter = function (name, user) {
 		// \u534d\u5350 swastika
 		// \u2a0d crossed integral (f)
 		name = name.replace(/[\u00a1\u2580-\u2590\u25A0\u25Ac\u25AE\u25B0\u2a0d\u534d\u5350]/g, '');
+
 		// e-mail address
 		if (name.includes('@') && name.includes('.')) return '';
+
+		// url
+		if (/[a-z0-9]\.(com|net|org)/.test(name)) name = name.replace(/\./g, '');
+
+		// Limit the amount of symbols allowed in usernames to 4 maximum, and disallow (R) and (C) from being used in the middle of names.
+		let nameSymbols = name.replace(/[^\u00A1-\u00BF\u00D7\u00F7\u02B9-\u0362\u2012-\u2027\u2030-\u205E\u2050-\u205F\u2090-\u23FA\u2500-\u2BD1]+/g, '');
+		// \u00ae\u00a9 (R) (C)
+		if (nameSymbols.length > 4 || /[^a-z0-9][a-z0-9][^a-z0-9]/.test(name.toLowerCase() + ' ') || /[\u00ae\u00a9].*[a-zA-Z0-9]/.test(name)) name = name.replace(/[\u00A1-\u00BF\u00D7\u00F7\u02B9-\u0362\u2012-\u2027\u2030-\u205E\u2050-\u205F\u2190-\u23FA\u2500-\u2BD1\u2E80-\u32FF\u3400-\u9FFF\uF900-\uFAFF\uFE00-\uFE6F]+/g, '').replace(/[^A-Za-z0-9]{2,}/g, ' ').trim();
 	}
 	name = name.replace(/^[^A-Za-z0-9]+/, ""); // remove symbols from start
 
@@ -184,6 +208,7 @@ Chat.namefilter = function (name, user) {
 	}
 	return name;
 };
+/**@type {((host: string, user: User, connection: Connection) => void)[]} */
 Chat.hostfilters = [];
 /**
  * @param {string} host
@@ -195,6 +220,7 @@ Chat.hostfilter = function (host, user, connection) {
 		filter(host, user, connection);
 	}
 };
+/**@type {((user: User, oldUser: User | null, usertype: string) => void)[]} */
 Chat.loginfilters = [];
 /**
  * @param {User} user
@@ -205,6 +231,20 @@ Chat.loginfilter = function (user, oldUser, usertype) {
 	for (const filter of Chat.loginfilters) {
 		filter(user, oldUser, usertype);
 	}
+};
+
+/**@type {NameFilter[]} */
+Chat.nicknamefilters = [];
+/**
+ * @param {string} nickname
+ * @param {User} user
+ */
+Chat.nicknamefilter = function (nickname, user) {
+	for (const filter of Chat.nicknamefilters) {
+		nickname = filter(nickname, user);
+		if (!nickname) return '';
+	}
+	return nickname;
 };
 
 /*********************************************************
@@ -242,26 +282,22 @@ class CommandContext {
 	}
 
 	/**
-	 * @param {any} [message]
+	 * @param {string} [msg]
 	 * @return {any}
 	 */
-	parse(message) {
-		if (message) {
+	parse(msg) {
+		if (typeof msg === 'string') {
 			// spawn subcontext
 			let subcontext = new CommandContext(this);
 			subcontext.recursionDepth++;
 			if (subcontext.recursionDepth > MAX_PARSE_RECURSION) {
 				throw new Error("Too much command recursion");
 			}
-			subcontext.message = message;
+			subcontext.message = msg;
 			return subcontext.parse();
 		}
-		message = this.message;
-
-		let originalRoom = this.room;
-		if (this.room && !(this.user.userid in this.room.users)) {
-			this.room = Rooms.global;
-		}
+		/** @type {any} */
+		let message = this.message;
 
 		let commandHandler = this.splitCommand(message);
 
@@ -269,10 +305,10 @@ class CommandContext {
 			message = this.run(commandHandler);
 		} else {
 			if (commandHandler === '!') {
-				if (originalRoom === Rooms.global) {
+				if (this.room === Rooms.global) {
 					return this.popupReply(`You tried use "${message}" as a global command, but it is not a global command.`);
-				} else if (originalRoom) {
-					return this.popupReply(`You tried to send "${message}" to the room "${originalRoom.id}" but it failed because you were not in that room.`);
+				} else if (this.room) {
+					return this.popupReply(`You tried to send "${message}" to the room "${this.room.id}" but it failed because you were not in that room.`);
 				}
 				return this.errorReply(`The command "${this.cmdToken}${this.fullCmd}" is unavailable in private messages. To send a message starting with "${this.cmdToken}${this.fullCmd}", type "${this.cmdToken}${this.cmdToken}${this.fullCmd}".`);
 			}
@@ -292,9 +328,6 @@ class CommandContext {
 				}
 			}
 
-			if (!this.pmTarget && this.room.id === 'global') {
-				return this.errorReply(`Please specify a room or user to send this message to.`);
-			}
 			message = this.canTalk(message);
 		}
 
@@ -316,7 +349,7 @@ class CommandContext {
 	/**
 	 * @param {string} message
 	 * @param {boolean} recursing
-	 * @return {string | undefined}
+	 * @return {'!' | undefined | Function}
 	 */
 	splitCommand(message = this.message, recursing = false) {
 		this.cmd = '';
@@ -380,6 +413,7 @@ class CommandContext {
 				}
 
 				fullCmd += ' ' + cmd;
+				// @ts-ignore
 				curCommands = commandHandler;
 			}
 		} while (commandHandler && typeof commandHandler === 'object');
@@ -394,17 +428,17 @@ class CommandContext {
 		if (!commandHandler && !recursing) {
 			for (let g in Config.groups) {
 				let groupid = Config.groups[g].id;
-				if (cmd === groupid) {
+				if (fullCmd === groupid) {
 					return this.splitCommand(`/promote ${target}, ${g}`, true);
-				} else if (cmd === 'global' + groupid) {
+				} else if (fullCmd === 'global' + groupid) {
 					return this.splitCommand(`/globalpromote ${target}, ${g}`, true);
-				} else if (cmd === 'de' + groupid || cmd === 'un' + groupid || cmd === 'globalde' + groupid || cmd === 'deglobal' + groupid) {
+				} else if (fullCmd === 'de' + groupid || fullCmd === 'un' + groupid || fullCmd === 'globalde' + groupid || fullCmd === 'deglobal' + groupid) {
 					return this.splitCommand(`/demote ${target}`, true);
-				} else if (cmd === 'room' + groupid) {
+				} else if (fullCmd === 'room' + groupid) {
 					return this.splitCommand(`/roompromote ${target}, ${g}`, true);
-				} else if (cmd === 'forceroom' + groupid) {
+				} else if (fullCmd === 'forceroom' + groupid) {
 					return this.splitCommand(`/roompromote !!!${target}, ${g}`, true);
-				} else if (cmd === 'roomde' + groupid || cmd === 'deroom' + groupid || cmd === 'roomun' + groupid) {
+				} else if (fullCmd === 'roomde' + groupid || fullCmd === 'deroom' + groupid || fullCmd === 'roomun' + groupid) {
 					return this.splitCommand(`/roomdemote ${target}`, true);
 				}
 			}
@@ -415,31 +449,39 @@ class CommandContext {
 		this.target = target;
 		this.fullCmd = fullCmd;
 
-		if (typeof commandHandler === 'function' && (this.pmTarget || this.room === Rooms.global)) {
-			if (!curCommands['!' + (typeof curCommands[cmd] === 'string' ? curCommands[cmd] : cmd)]) {
+		const requireGlobalCommand = (
+			this.pmTarget ||
+			this.room === Rooms.global ||
+			(this.room && !(this.user.userid in this.room.users))
+		);
+
+		if (typeof commandHandler === 'function' && requireGlobalCommand) {
+			const baseCmd = typeof curCommands[cmd] === 'string' ? curCommands[cmd] : cmd;
+			if (!curCommands['!' + baseCmd]) {
 				return '!';
 			}
 		}
 
+		// @ts-ignore
 		return commandHandler;
 	}
 	/**
 	 * @param {string | {call: Function}} commandHandler
 	 */
 	run(commandHandler) {
+		// @ts-ignore
 		if (typeof commandHandler === 'string') commandHandler = Chat.commands[commandHandler];
 		let result;
 		try {
 			// @ts-ignore
 			result = commandHandler.call(this, this.target, this.room, this.user, this.connection, this.cmd, this.message);
 		} catch (err) {
-			require('./lib/crashlogger')(err, 'A chat command', {
+			Monitor.crashlog(err, 'A chat command', {
 				user: this.user.name,
 				room: this.room && this.room.id,
 				pmTarget: this.pmTarget && this.pmTarget.name,
 				message: this.message,
 			});
-			Rooms.global.reportCrash(err);
 			this.sendReply(`|html|<div class="broadcast-red"><b>Pokemon Showdown crashed!</b><br />Don't worry, we're working on fixing it.</div>`);
 		}
 		if (result === undefined) result = false;
@@ -448,7 +490,7 @@ class CommandContext {
 	}
 
 	/**
-	 * @param {BasicChatRoom?} room
+	 * @param {BasicChatRoom | undefined?} room
 	 * @param {User} user
 	 * @param {string} message
 	 */
@@ -483,7 +525,7 @@ class CommandContext {
 	}
 
 	/**
-	 * @param {BasicChatRoom?} room
+	 * @param {BasicChatRoom | undefined?} room
 	 * @param {User} user
 	 */
 	checkSlowchat(room, user) {
@@ -495,7 +537,7 @@ class CommandContext {
 	}
 
 	/**
-	 * @param {BasicChatRoom?} room
+	 * @param {BasicChatRoom | undefined?} room
 	 * @param {string} message
 	 */
 	checkBanwords(room, message) {
@@ -521,22 +563,25 @@ class CommandContext {
 	 * @param {string} message
 	 */
 	pmTransform(message) {
-		if (!this.pmTarget) throw new Error(`Not a PM`);
-		let prefix = `|pm|${this.user.getIdentity()}|${this.pmTarget.getIdentity()}|`;
+		if (!this.pmTarget && this.room !== Rooms.global) throw new Error(`Not a PM`);
+		const targetIdentity = this.pmTarget ? this.pmTarget.getIdentity() : '~';
+		const prefix = `|pm|${this.user.getIdentity()}|${targetIdentity}|`;
 		return message.split('\n').map(message => {
 			if (message.startsWith('||')) {
-				return prefix + '/text ' + message.slice(2);
-			} else if (message.startsWith('|html|')) {
-				return prefix + '/raw ' + message.slice(6);
-			} else if (message.startsWith('|raw|')) {
-				return prefix + '/raw ' + message.slice(5);
-			} else if (message.startsWith('|c~|')) {
+				return prefix + `/text ` + message.slice(2);
+			} else if (message.startsWith(`|html|`)) {
+				return prefix + `/raw ` + message.slice(6);
+			} else if (message.startsWith(`|raw|`)) {
+				return prefix + `/raw ` + message.slice(5);
+			} else if (message.startsWith(`|error|`)) {
+				return prefix + `/error ` + message.slice(7);
+			} else if (message.startsWith(`|c~|`)) {
 				return prefix + message.slice(4);
-			} else if (message.startsWith('|c|~|/')) {
+			} else if (message.startsWith(`|c|~|/`)) {
 				return prefix + message.slice(5);
 			}
-			return prefix + '/text ' + message;
-		}).join('\n');
+			return prefix + `/text ` + message;
+		}).join(`\n`);
 	}
 	/**
 	 * @param {string} data
@@ -547,7 +592,7 @@ class CommandContext {
 			this.add(data);
 		} else {
 			// not broadcasting
-			if (this.pmTarget) {
+			if (this.pmTarget || this.room === Rooms.global) {
 				data = this.pmTransform(data);
 				this.connection.send(data);
 			} else {
@@ -559,24 +604,19 @@ class CommandContext {
 	 * @param {string} message
 	 */
 	errorReply(message) {
-		if (this.pmTarget) {
-			let prefix = '|pm|' + this.user.getIdentity() + '|' + this.pmTarget.getIdentity() + '|/error ';
-			this.connection.send(prefix + message.replace(/\n/g, prefix));
-		} else {
-			this.sendReply('|html|<div class="message-error">' + Chat.escapeHTML(message).replace(/\n/g, '<br />') + '</div>');
-		}
+		this.sendReply(`|error|` + message.replace(/\n/g, `\n|error|`));
 	}
 	/**
 	 * @param {string} html
 	 */
 	addBox(html) {
-		this.add('|html|<div class="infobox">' + html + '</div>');
+		this.add(`|html|<div class="infobox">${html}</div>`);
 	}
 	/**
 	 * @param {string} html
 	 */
 	sendReplyBox(html) {
-		this.sendReply('|html|<div class="infobox">' + html + '</div>');
+		this.sendReply(`|html|<div class="infobox">${html}</div>`);
 	}
 	/**
 	 * @param {string} message
@@ -627,20 +667,22 @@ class CommandContext {
 	}
 	/**
 	 * @param {string} action
-	 * @param {string | User} user
+	 * @param {string | User?} user
 	 * @param {string} note
 	 */
 	globalModlog(action, user, note) {
 		let buf = `(${this.room.id}) ${action}: `;
-		if (typeof user === 'string') {
-			buf += `[${user}]`;
-		} else {
-			let userid = user.getLastId();
-			buf += `[${userid}]`;
-			if (user.autoconfirmed && user.autoconfirmed !== userid) buf += ` ac:[${user.autoconfirmed}]`;
-			const alts = user.getAltUsers(false, true).map(user => user.getLastId()).join('], [');
-			if (alts.length) buf += ` alts:[${alts}]`;
-			buf += ` [${user.latestIp}]`;
+		if (user) {
+			if (typeof user === 'string') {
+				buf += `[${user}]`;
+			} else {
+				let userid = user.getLastId();
+				buf += `[${userid}]`;
+				if (user.autoconfirmed && user.autoconfirmed !== userid) buf += ` ac:[${user.autoconfirmed}]`;
+				const alts = user.getAltUsers(false, true).slice(1).map(user => user.getLastId()).join('], [');
+				if (alts.length) buf += ` alts:[${alts}]`;
+				buf += ` [${user.latestIp}]`;
+			}
 		}
 		buf += note;
 
@@ -663,7 +705,7 @@ class CommandContext {
 				buf += `[${userid}]`;
 				if (!options.noalts) {
 					if (user.autoconfirmed && user.autoconfirmed !== userid) buf += ` ac:[${user.autoconfirmed}]`;
-					const alts = user.getAltUsers(false, true).map(user => user.getLastId()).join('], [');
+					const alts = user.getAltUsers(false, true).slice(1).map(user => user.getLastId()).join('], [');
 					if (alts.length) buf += ` alts:[${alts}]`;
 				}
 				if (!options.noip) buf += ` [${user.latestIp}]`;
@@ -802,8 +844,8 @@ class CommandContext {
 			room = null;
 		} else if (!room) {
 			if (this.room.id === 'global') {
-				// should never happen
-				throw new Error(`Command tried to write to global: ${this.user.name}: ${message}`);
+				this.connection.popup(`Your message could not be sent:\n\n${message}\n\nIt needs to be sent to a user or room.`);
+				return false;
 			}
 			// @ts-ignore
 			room = this.room;
@@ -925,7 +967,7 @@ class CommandContext {
 			return false;
 		}
 		if (!this.checkBanwords(room, message) && !user.can('mute', null, room)) {
-			this.errorReply("Your message contained banned words.");
+			this.errorReply("Your message contained banned words in this room.");
 			return false;
 		}
 
@@ -944,6 +986,11 @@ class CommandContext {
 			}
 			user.lastMessage = message;
 			user.lastMessageTime = Date.now();
+		}
+
+		if (room && room.highTraffic && toId(message).replace(/[^a-z]+/, '').length < 2 && !user.can('mute', null, room)) {
+			this.errorReply('Due to this room being a high traffic room, your message must contain at least two letters.');
+			return false;
 		}
 
 		if (Chat.filters.length) {
@@ -1226,6 +1273,7 @@ Chat.loadPlugins = function () {
 	if (Config.namefilter) Chat.namefilters.push(Config.namefilter);
 	if (Config.hostfilter) Chat.hostfilters.push(Config.hostfilter);
 	if (Config.loginfilter) Chat.loginfilters.push(Config.loginfilter);
+	if (Config.nicknamefilter) Chat.nicknamefilters.push(Config.nicknamefilter);
 
 	// Install plug-in commands and chat filters
 
@@ -1245,6 +1293,7 @@ Chat.loadPlugins = function () {
 		if (plugin.namefilter) Chat.namefilters.push(plugin.namefilter);
 		if (plugin.hostfilter) Chat.hostfilters.push(plugin.hostfilter);
 		if (plugin.loginfilter) Chat.loginfilters.push(plugin.loginfilter);
+		if (plugin.nicknamefilter) Chat.nicknamefilters.push(plugin.nicknamefilter);
 	}
 };
 
@@ -1535,6 +1584,7 @@ Chat.getDataItemHTML = function (item) {
 /**
  * Visualizes eval output in a slightly more readable form
  * @param {any} value
+ * @return {string}
  */
 Chat.stringify = function (value, depth = 0) {
 	if (value === undefined) return `undefined`;
@@ -1590,3 +1640,46 @@ Chat.stringify = function (value, depth = 0) {
 Chat.formatText = require('./chat-formatter').formatText;
 Chat.linkRegex = require('./chat-formatter').linkRegex;
 Chat.updateServerLock = false;
+
+/**
+ * Gets the dimension of the image at url. Returns 0x0 if the image isn't found, as well as the relevant error.
+ * @param {string} url
+ * @return {Promise<AnyObject>}
+ */
+Chat.getImageDimensions = function (url) {
+	return new Promise(resolve => {
+		probe(url).then(dimensions => resolve(dimensions), (err) => resolve({height: 0, width: 0, err: err}));
+	});
+};
+
+/**
+ * Generates dimensions to fit an image at url into a maximum size of maxWidth x maxHeight,
+ * preserving aspect ratio.
+ * @param {string} url
+ * @param {number} [maxHeight]
+ * @param {number} [maxWidth]
+ * @return {Promise<[number, number]>}
+ */
+Chat.fitImage = async function (url, maxHeight = 300, maxWidth = 300) {
+	let {height, width} = await Chat.getImageDimensions(url);
+
+	let ratio = 1;
+
+	if (width <= maxWidth && height <= maxHeight) return [width, height];
+
+	if (height * (maxWidth / maxHeight) > width) {
+		ratio = maxHeight / height;
+	} else {
+		ratio = maxWidth / width;
+	}
+
+	return [Math.round(width * ratio), Math.round(height * ratio)];
+};
+
+// Used (and populated) by ChatMonitor.
+/** @type {{[k: string]: string[]}} */
+Chat.filterKeys = {};
+/** @type {{[k: string]: [(string | RegExp), string, string?, number][]}} */
+Chat.filterWords = {};
+/** @type {Map<string, string>} */
+Chat.namefilterwhitelist = new Map();

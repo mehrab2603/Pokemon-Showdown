@@ -415,6 +415,7 @@ let BattleItems = {
 		},
 		onTryHealPriority: 1,
 		onTryHeal: function (damage, target, source, effect) {
+			/**@type {{[k: string]: number}} */
 			let heals = {drain: 1, leechseed: 1, ingrain: 1, aquaring: 1, strengthsap: 1};
 			if (heals[effect.id]) {
 				return Math.ceil((damage * 1.3) - 0.5); // Big Root rounds half down
@@ -563,7 +564,7 @@ let BattleItems = {
 	},
 	"brightpowder": {
 		id: "brightpowder",
-		name: "BrightPowder",
+		name: "Bright Powder",
 		spritenum: 51,
 		fling: {
 			basePower: 10,
@@ -3185,7 +3186,7 @@ let BattleItems = {
 		},
 		num: 215,
 		gen: 3,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"magmarizer": {
 		id: "magmarizer",
@@ -4207,7 +4208,7 @@ let BattleItems = {
 		},
 		num: 293,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"powerband": {
 		id: "powerband",
@@ -4222,7 +4223,7 @@ let BattleItems = {
 		},
 		num: 292,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"powerbelt": {
 		id: "powerbelt",
@@ -4237,7 +4238,7 @@ let BattleItems = {
 		},
 		num: 290,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"powerbracer": {
 		id: "powerbracer",
@@ -4252,7 +4253,7 @@ let BattleItems = {
 		},
 		num: 289,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"powerherb": {
 		id: "powerherb",
@@ -4284,7 +4285,7 @@ let BattleItems = {
 		},
 		num: 291,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"powerweight": {
 		id: "powerweight",
@@ -4299,7 +4300,7 @@ let BattleItems = {
 		},
 		num: 294,
 		gen: 4,
-		desc: "Holder's Speed is halved. The Ability Klutz does not ignore this effect.",
+		desc: "Holder's Speed is halved. The Klutz Ability does not ignore this effect.",
 	},
 	"premierball": {
 		id: "premierball",
@@ -5435,6 +5436,7 @@ let BattleItems = {
 			}
 			if (stats.length) {
 				let randomStat = this.sample(stats);
+				/**@type {{[k: string]: number}} */
 				let boost = {};
 				boost[randomStat] = 2;
 				this.boost(boost);
@@ -5972,6 +5974,7 @@ let BattleItems = {
 			basePower: 10,
 			effect: function (pokemon) {
 				let activate = false;
+				/**@type {{[k: string]: number}} */
 				let boosts = {};
 				for (let i in pokemon.boosts) {
 					// @ts-ignore
@@ -5988,6 +5991,7 @@ let BattleItems = {
 		},
 		onUpdate: function (pokemon) {
 			let activate = false;
+			/**@type {{[k: string]: number}} */
 			let boosts = {};
 			for (let i in pokemon.boosts) {
 				// @ts-ignore
@@ -6153,7 +6157,8 @@ let BattleItems = {
 			basePower: 80,
 			type: "Poison",
 		},
-		onUpdate: function (pokemon) {
+		onResidualOrder: 5,
+		onResidual: function (pokemon) {
 			if (pokemon.hp <= pokemon.maxhp / 2) {
 				pokemon.eatItem();
 			}
@@ -6224,7 +6229,8 @@ let BattleItems = {
 			basePower: 80,
 			type: "Psychic",
 		},
-		onUpdate: function (pokemon) {
+		onResidualOrder: 5,
+		onResidual: function (pokemon) {
 			if (pokemon.hp <= pokemon.maxhp / 2) {
 				pokemon.eatItem();
 			}

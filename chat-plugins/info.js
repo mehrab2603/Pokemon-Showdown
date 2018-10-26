@@ -12,9 +12,6 @@
 
 'use strict';
 
-/** @typedef {(this: CommandContext, target: string, room: BasicChatRoom, user: User, connection: Connection, cmd: string, message: string) => (void)} ChatHandler */
-/** @typedef {{[k: string]: ChatHandler | string | true | string[]}} ChatCommands */
-
 /** @type {ChatCommands} */
 const commands = {
 
@@ -84,16 +81,24 @@ const commands = {
 		}
 		buf += '<br />';
 		if (user.can('alts', targetUser) || user.can('alts') && user === targetUser) {
-			let prevNames = Object.keys(targetUser.prevNames).join(", ");
+			let prevNames = Object.keys(targetUser.prevNames).map(userid => {
+				const punishment = Punishments.userids.get(userid);
+				return userid + (punishment ? ` (${Punishments.punishmentTypes.get(punishment[0]) || 'punished'}${punishment[1] !== targetUser.userid ? ` as ${punishment[1]}` : ''})` : '');
+			}).join(", ");
 			if (prevNames) buf += Chat.html`<br />Previous names: ${prevNames}`;
 
 			for (const targetAlt of targetUser.getAltUsers(true)) {
 				if (!targetAlt.named && !targetAlt.connected) continue;
 				if (targetAlt.group === '~' && user.group !== '~') continue;
 
-				buf += Chat.html`<br />Alt: <span class="username">${targetAlt.name}</span>`;
+				const punishment = Punishments.userids.get(targetAlt.userid);
+				const punishMsg = punishment ? ` (${Punishments.punishmentTypes.get(punishment[0]) || 'punished'}${punishment[1] !== targetAlt.userid ? ` as ${punishment[1]}` : ''})` : '';
+				buf += Chat.html`<br />Alt: <span class="username">${targetAlt.name}</span>${punishMsg}`;
 				if (!targetAlt.connected) buf += ` <em style="color:gray">(offline)</em>`;
-				prevNames = Object.keys(targetAlt.prevNames).join(", ");
+				prevNames = Object.keys(targetAlt.prevNames).map(userid => {
+					const punishment = Punishments.userids.get(userid);
+					return userid + (punishment ? ` (${Punishments.punishmentTypes.get(punishment[0]) || 'punished'}${punishment[1] !== targetAlt.userid ? ` as ${punishment[1]}` : ''})` : '');
+				}).join(", ");
 				if (prevNames) buf += `<br />Previous names: ${prevNames}`;
 			}
 			if (targetUser.namelocked) {
@@ -406,13 +411,12 @@ const commands = {
 		target = sep[0].trim();
 		let targetId = toId(target);
 		if (!targetId) return this.parse('/help data');
-		let targetNum = parseInt(targetId);
+		let targetNum = parseInt(target);
 		if (!isNaN(targetNum) && '' + targetNum === target) {
 			for (let p in Dex.data.Pokedex) {
 				let pokemon = Dex.getTemplate(p);
 				if (pokemon.num === targetNum) {
 					target = pokemon.species;
-					targetId = pokemon.id;
 					break;
 				}
 			}
@@ -552,6 +556,7 @@ const commands = {
 					if (move.flags['powder']) details["&#10003; Powder"] = "";
 					if (move.flags['reflectable']) details["&#10003; Bounceable"] = "";
 					if (move.flags['gravity'] && mod.gen >= 4) details["&#10007; Suppressed by Gravity"] = "";
+					if (move.flags['dance'] && mod.gen >= 7) details["&#10003; Dance move"] = "";
 
 					if (mod.gen >= 7) {
 						if (move.zMovePower) {
@@ -814,46 +819,54 @@ const commands = {
 			bestCoverage[type] = -5;
 		}
 
-		for (const arg of targets) {
-			let move = arg.trim();
-			if (toId(move) === mod.currentMod) continue;
-			move = move.charAt(0).toUpperCase() + move.slice(1).toLowerCase();
-			if (move === 'Table' || move === 'All') {
+		for (let arg of targets) {
+			arg = toId(arg);
+
+			// arg is the gen?
+			if (arg === mod.currentMod) continue;
+
+			// arg is 'table' or 'all'?
+			if (arg === 'table' || arg === 'all') {
 				if (this.broadcasting) return this.sendReplyBox("The full table cannot be broadcast.");
 				dispTable = true;
 				continue;
 			}
 
+			// arg is a type?
+			let argType = arg.charAt(0).toUpperCase() + arg.slice(1);
 			let eff;
-			if (move in mod.data.TypeChart) {
-				sources.push(move);
+			if (argType in mod.data.TypeChart) {
+				sources.push(argType);
 				for (let type in bestCoverage) {
-					if (!mod.getImmunity(move, type) && !move.ignoreImmunity) continue;
-					eff = mod.getEffectiveness(move, type);
-					if (eff > bestCoverage[type]) bestCoverage[type] = eff;
-				}
-				continue;
-			}
-			move = mod.getMove(move);
-			if (move.exists && move.gen <= mod.gen) {
-				if (!move.basePower && !move.basePowerCallback) continue;
-				if (move.id === 'thousandarrows') hasThousandArrows = true;
-				sources.push(move);
-				for (let type in bestCoverage) {
-					if (move.id === "struggle") {
-						eff = 0;
-					} else {
-						if (!mod.getImmunity(move.type, type) && !move.ignoreImmunity) continue;
-						let baseMod = mod.getEffectiveness(move, type);
-						let moveMod = move.onEffectiveness && move.onEffectiveness.call(mod, baseMod, type, move);
-						eff = typeof moveMod === 'number' ? moveMod : baseMod;
-					}
+					if (!mod.getImmunity(argType, type)) continue;
+					eff = mod.getEffectiveness(argType, type);
 					if (eff > bestCoverage[type]) bestCoverage[type] = eff;
 				}
 				continue;
 			}
 
-			return this.errorReply(`No type or move '${arg}' found${Dex.gen > mod.gen ? ` in Gen ${mod.gen}` : ""}.`);
+			// arg is a move?
+			let move = mod.getMove(arg);
+			if (!move.exists) {
+				return this.errorReply(`Type or move '${arg}' not found.`);
+			} else if (move.gen > mod.gen) {
+				return this.errorReply(`Move '${arg}' is not available in Gen ${mod.gen}.`);
+			}
+
+			if (!move.basePower && !move.basePowerCallback) continue;
+			if (move.id === 'thousandarrows') hasThousandArrows = true;
+			sources.push(move);
+			for (let type in bestCoverage) {
+				if (move.id === "struggle") {
+					eff = 0;
+				} else {
+					if (!mod.getImmunity(move.type, type) && !move.ignoreImmunity) continue;
+					let baseMod = mod.getEffectiveness(move, type);
+					let moveMod = move.onEffectiveness && move.onEffectiveness.call(mod, baseMod, type, move);
+					eff = typeof moveMod === 'number' ? moveMod : baseMod;
+				}
+				if (eff > bestCoverage[type]) bestCoverage[type] = eff;
+			}
 		}
 		if (sources.length === 0) return this.errorReply("No moves using a type table for determining damage were specified.");
 		if (sources.length > 4) return this.errorReply("Specify a maximum of 4 moves or types.");
@@ -1455,8 +1468,8 @@ const commands = {
 			`An introduction to the Create-A-Pok&eacute;mon project:<br />` +
 			`- <a href="https://www.smogon.com/cap/">CAP project website and description</a><br />` +
 			`- <a href="https://www.smogon.com/forums/threads/48782/">What Pok&eacute;mon have been made?</a><br />` +
-			`- <a href="https://www.smogon.com/forums/forums/311">Talk about the metagame here</a><br />` +
-			`- <a href="https://www.smogon.com/forums/threads/3593752/">Sample SM CAP teams</a>`
+			`- <a href="https://www.smogon.com/forums/forums/477">Talk about the metagame here</a><br />` +
+			`- <a href="https://www.smogon.com/forums/threads/3634419/">Sample SM CAP teams</a>`
 		);
 	},
 	caphelp: [
@@ -1528,7 +1541,7 @@ const commands = {
 			break;
 		}
 
-		if (!totalMatches) return this.errorReply("No " + (target ? "matched " : "") + "formats found.");
+		if (!totalMatches) return this.errorReply("No matched formats found.");
 		if (totalMatches === 1) {
 			let rules = [];
 			let rulesetHtml = '';
@@ -1674,11 +1687,27 @@ const commands = {
 	rule: 'rules',
 	rules: function (target, room, user) {
 		if (!target) {
+			const languageTable = {
+				portuguese: ['Por favor siga as regras:', 'pages/rules-pt', 'Regras Globais', room ? `Regras da sala ${room.title}` : ``],
+				spanish: ['Por favor sigue las reglas:', 'pages/rules-es', 'Reglas Globales', room ? `Reglas de la sala ${room.title}` : ``],
+				italian: ['Per favore, rispetta le seguenti regole:', 'pages/rules-it', 'Regole Globali', room ? `Regole della room ${room.title}` : ``],
+				french: ['Veuillez suivre ces règles:', 'pages/rules-fr', 'Règles Générales', room ? `Règles de la room ${room.title}` : ``],
+				simplifiedchinese: ['请遵守规则:', 'pages/rules-zh', '全站规则', room ? `${room.title}房间规则` : ``],
+				traditionalchinese: ['請遵守規則:', 'pages/rules-tw', '全站規則', room ? `${room.title}房間規則` : ``],
+				japanese: ['ルールを守ってください:', 'pages/rules-ja', '全部屋共通ルール', room ? `${room.title}部屋のルール` : ``],
+				hindi: ['कृपया इन नियमों का पालन करें:', 'pages/rules-hi', 'सामान्य नियम', room ? `${room.title} Room के नियम` : ``],
+				turkish: ['Lütfen kurallara uyun:', 'pages/rules-tr', 'Genel kurallar', room ? `${room.title} odası kuralları` : ``],
+				dutch: ['Volg de regels:', 'pages/rules-nl', 'Globale Regels ', room ? `Regels van de ${room.title} room` : ``],
+				german: ['Bitte befolgt die Regeln:', 'pages/rules-de', 'Globale Regeln', room ? `Regeln des ${room.title} Raumes` : ``],
+				english: ['Please follow the rules:', 'rules', 'Global Rules', room ? `${room.title} room rules` : ``],
+			};
 			if (!this.runBroadcast()) return;
+			const globalRulesLink = `https://pokemonshowdown.com/${languageTable[room && room.language ? room.language : 'english'][1]}`;
+			const globalRulesLinkText = languageTable[room && room.language ? room.language : 'english'][2];
 			this.sendReplyBox(
-				`Please follow the rules:<br />` +
-				(room && room.rulesLink ? Chat.html`- <a href="${room.rulesLink}">${room.title} room rules</a><br />` : ``) +
-				`- <a href="https://pokemonshowdown.com/rules">${room && room.rulesLink ? "Global rules" : "Rules"}</a>`
+				`${room ? languageTable[room.language || 'english'][0] + '<br />' : ``}` +
+				(room && room.rulesLink ? Chat.html`- <a href="${room.rulesLink}">${languageTable[room.language || 'english'][3]}</a><br />` : ``) +
+				`- <a href="${globalRulesLink}">${globalRulesLinkText}</a>`
 			);
 			return;
 		}
@@ -1837,11 +1866,23 @@ const commands = {
 			} else if (extraFormat.effectType !== 'Format') {
 				formatName = formatId = '';
 			}
+			const supportedLanguages = {
+				spanish: 'es',
+				french: 'fr',
+				italian: 'ita',
+				german: 'ger',
+				portuguese: 'por',
+			};
 			let speciesid = pokemon.speciesid;
 			// Special case for Meowstic-M
 			if (speciesid === 'meowstic') speciesid = 'meowsticm';
 			if (pokemon.tier === 'CAP') {
 				this.sendReplyBox(`<a href="https://www.smogon.com/cap/pokemon/strategies/${speciesid}">${generation.toUpperCase()} ${Chat.escapeHTML(formatName)} ${pokemon.name} analysis preview</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a> <a href="http://smogon.com/cap/">CAP Project</a>`);
+			} else if (formatId === 'ou' && generation === 'sm' && room && room.language in supportedLanguages) {
+				// Limited support for translated analysis
+				// Translated analysis do not support automatic redirects from a speciesid to the proper page
+				let pageid = pokemon.name.toLowerCase().replace(' ', '_');
+				this.sendReplyBox(`<a href="https://www.smogon.com/translations/${supportedLanguages[room.language]}/analyses/ou/${pageid}">${generation.toUpperCase()} ${Chat.escapeHTML(formatName)} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
 			} else {
 				this.sendReplyBox(`<a href="https://www.smogon.com/dex/${generation}/pokemon/${speciesid}${(formatId ? '/' + formatId : '')}">${generation.toUpperCase()} ${Chat.escapeHTML(formatName)} ${pokemon.name} analysis</a>, brought to you by <a href="https://www.smogon.com">Smogon University</a>`);
 			}
@@ -2135,11 +2176,8 @@ const commands = {
 		}
 
 		let targets = target.split(',');
-		if (targets.length !== 3) {
-			// Width and height are required because most browsers insert the
-			// <img> element before width and height are known, and when the
-			// image is loaded, this changes the height of the chat area, which
-			// messes up autoscrolling.
+
+		if (targets.length !== 1 && targets.length !== 3) {
 			return this.parse('/help showimage');
 		}
 
@@ -2149,27 +2187,34 @@ const commands = {
 
 		if (!image) return false;
 
-		let width = targets[1].trim();
-		if (!width) return this.errorReply(`No width for the image was provided!`);
-		if (!isNaN(width)) width += `px`;
+		if (targets.length === 3) {
+			let width = targets[1].trim();
+			if (!width) return this.errorReply(`No width for the image was provided!`);
+			if (!isNaN(width)) width += `px`;
 
-		let height = targets[2].trim();
-		if (!height) return this.errorReply(`No height for the image was provided!`);
-		if (!isNaN(height)) height += `px`;
+			let height = targets[2].trim();
+			if (!height) return this.errorReply(`No height for the image was provided!`);
+			if (!isNaN(height)) height += `px`;
 
-		let unitRegex = /^\d+(?:p[xtc]|%|[ecm]m|ex|in)$/;
-		if (!unitRegex.test(width)) {
-			return this.errorReply(`"${width}" is not a valid width value!`);
+			let unitRegex = /^\d+(?:p[xtc]|%|[ecm]m|ex|in)$/;
+			if (!unitRegex.test(width)) {
+				return this.errorReply(`"${width}" is not a valid width value!`);
+			}
+			if (!unitRegex.test(height)) {
+				return this.errorReply(`"${height}" is not a valid height value!`);
+			}
+
+			return this.sendReply(Chat.html`|raw|<img src="${image}" style="width: ${width}; height: ${height}" />`);
 		}
-		if (!unitRegex.test(height)) {
-			return this.errorReply(`"${height}" is not a valid height value!`);
-		}
 
-		this.sendReply(Chat.html`|raw|<img src="${image}" style="width: ${width}; height: ${height}" />`);
+		Chat.fitImage(image).then(([width, height]) => {
+			this.sendReply(Chat.html`|raw|<img src="${image}" style="width: ${width}px; height: ${height}px" />`);
+			room.update();
+		});
 	},
-	showimagehelp: [`/showimage [url], [width], [height] - Show an image. Any CSS units may be used for the width or height (default: px). Requires: # & ~`],
+	showimagehelp: [`/showimage [url], [width], [height] - Show an image. Any CSS units may be used for the width or height (default: px). If width and height aren't provided, automatically scale the image to fit in chat. Requires: # & ~`],
 
-	htmlbox: function (target, room, user, connection, cmd, message) {
+	htmlbox: function (target, room, user) {
 		if (!target) return this.parse('/help htmlbox');
 		target = this.canHTML(target);
 		if (!target) return;
@@ -2181,8 +2226,12 @@ const commands = {
 
 		this.sendReplyBox(target);
 	},
-	addhtmlbox: function (target, room, user, connection, cmd, message) {
-		if (!target) return this.parse('/help htmlbox');
+	htmlboxhelp: [
+		`/htmlbox [message] - Displays a message, parsing HTML code contained.`,
+		`!htmlbox [message] - Shows everyone a message, parsing HTML code contained. Requires: * # & ~`,
+	],
+	addhtmlbox: function (target, room, user, connection, cmd) {
+		if (!target) return this.parse('/help ' + cmd);
 		if (!this.canTalk()) return;
 		target = this.canHTML(target);
 		if (!target) return;
@@ -2194,9 +2243,26 @@ const commands = {
 
 		this.addBox(target);
 	},
-	htmlboxhelp: [
-		`/htmlbox [message] - Displays a message, parsing HTML code contained.`,
-		`!htmlbox [message] - Shows everyone a message, parsing HTML code contained. Requires: ~ & #`,
+	addhtmlboxhelp: [
+		`/addhtmlbox [message] - Shows everyone a message, parsing HTML code contained. Requires: * & ~`,
+	],
+	addrankhtmlbox: function (target, room, user, connection, cmd) {
+		if (!target) return this.parse('/help ' + cmd);
+		if (!this.canTalk()) return;
+		let [rank, html] = this.splitOne(target);
+		if (!(rank in Config.groups)) return this.errorReply(`Group '${rank}' does not exist.`);
+		html = this.canHTML(html);
+		if (!html) return;
+		if (!this.can('addhtml', null, room)) return;
+
+		if (!user.can('addhtml')) {
+			html += Chat.html`<div style="float:right;color:#888;font-size:8pt">[${user.name}]</div><div style="clear:both"></div>`;
+		}
+
+		this.room.sendRankedUsers(`|html|<div class="infobox">${html}</div>`, rank);
+	},
+	addrankhtmlboxhelp: [
+		`/addrankhtmlbox [rank], [message] - Shows everyone with the specified rank or higher a message, parsing HTML code contained. Requires: * & ~`,
 	],
 	changeuhtml: 'adduhtml',
 	adduhtml: function (target, room, user, connection, cmd) {
@@ -2213,13 +2279,40 @@ const commands = {
 			html += Chat.html`<div style="float:right;color:#888;font-size:8pt">[${user.name}]</div><div style="clear:both"></div>`;
 		}
 
-		this.add(`|uhtml${(cmd === 'changeuhtml' ? 'change' : '')}|${name}|${html}`);
+		html = `|uhtml${(cmd === 'changeuhtml' ? 'change' : '')}|${name}|${html}`;
+		this.add(html);
 	},
 	adduhtmlhelp: [
-		`/adduhtml [name], [message] - Shows everyone a message that can change, parsing HTML code contained.`,
+		`/adduhtml [name], [message] - Shows everyone a message that can change, parsing HTML code contained.  Requires: * & ~`,
 	],
 	changeuhtmlhelp: [
-		`/changeuhtml [name], [message] - Changes a message previously shown with /adduhtml`,
+		`/changeuhtml [name], [message] - Changes the message previously shown with /adduhtml [name]. Requires: * & ~`,
+	],
+	changerankuhtml: 'addrankuhtml',
+	addrankuhtml: function (target, room, user, connection, cmd) {
+		if (!target) return this.parse('/help ' + cmd);
+		if (!this.canTalk()) return;
+
+		let [rank, uhtml] = this.splitOne(target);
+		if (!(rank in Config.groups)) return this.errorReply(`Group '${rank}' does not exist.`);
+		let [name, html] = this.splitOne(uhtml);
+		name = toId(name);
+		html = this.canHTML(html);
+		if (!html) return;
+		if (!this.can('addhtml', null, room)) return;
+
+		if (!user.can('addhtml')) {
+			html += Chat.html`<div style="float:right;color:#888;font-size:8pt">[${user.name}]</div><div style="clear:both"></div>`;
+		}
+
+		html = `|uhtml${(cmd === 'changerankuhtml' ? 'change' : '')}|${name}|${html}`;
+		this.room.sendRankedUsers(html, rank);
+	},
+	addrankuhtmlhelp: [
+		`/addrankuhtml [rank], [name], [message] - Shows everyone with the specified rank or higher a message that can change, parsing HTML code contained.  Requires: * & ~`,
+	],
+	changerankuhtmlhelp: [
+		`/changerankuhtml [rank], [name], [message] - Changes the message previously shown with /addrankuhtml [rank], [name]. Requires: * & ~`,
 	],
 };
 

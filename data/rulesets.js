@@ -54,7 +54,7 @@ let BattleFormats = {
 		effectType: 'ValidatorRule',
 		name: 'Minimal GBU',
 		desc: "The standard ruleset for official tournaments, but without Restricted Legendary bans",
-		ruleset: ['Species Clause', 'Nickname Clause', 'Item Clause', 'Cancel Mod'],
+		ruleset: ['Species Clause', 'Nickname Clause', 'Item Clause', 'Team Preview', 'Cancel Mod'],
 		banlist: ['Unreleased', 'Illegal', 'Battle Bond',
 			'Mew',
 			'Celebi',
@@ -129,6 +129,8 @@ let BattleFormats = {
 			if (template.gen && template.gen !== this.gen && template.tier === 'Illegal') {
 				problems.push(set.species + ' does not exist outside of gen ' + template.gen + '.');
 			}
+			/**@type {Ability} */
+			// @ts-ignore
 			let ability = {};
 			if (set.ability) {
 				ability = this.getAbility(set.ability);
@@ -232,6 +234,7 @@ let BattleFormats = {
 			// limit one of each move
 			let moves = [];
 			if (set.moves) {
+				/**@type {{[k: string]: true}} */
 				let hasMove = {};
 				for (const moveId of set.moves) {
 					let move = this.getMove(moveId);
@@ -278,6 +281,7 @@ let BattleFormats = {
 			}
 
 			if (template.species === 'Pikachu-Cosplay') {
+				/**@type {{[k: string]: string}} */
 				let cosplay = {meteormash: 'Pikachu-Rock-Star', iciclecrash: 'Pikachu-Belle', drainingkiss: 'Pikachu-Pop-Star', electricterrain: 'Pikachu-PhD', flyingpress: 'Pikachu-Libre'};
 				for (const moveid of set.moves) {
 					if (moveid in cosplay) {
@@ -420,6 +424,7 @@ let BattleFormats = {
 			this.add('rule', 'Species Clause: Limit one of each Pokémon');
 		},
 		onValidateTeam: function (team, format) {
+			/**@type {{[k: string]: true}} */
 			let speciesTable = {};
 			for (const set of team) {
 				let template = this.getTemplate(set.species);
@@ -435,6 +440,7 @@ let BattleFormats = {
 		name: 'Nickname Clause',
 		desc: "Prevents teams from having more than one Pok&eacute;mon with the same nickname",
 		onValidateTeam: function (team, format) {
+			/**@type {{[k: string]: true}} */
 			let nameTable = {};
 			for (const set of team) {
 				let name = set.name;
@@ -458,6 +464,7 @@ let BattleFormats = {
 			this.add('rule', 'Item Clause: Limit one of each item');
 		},
 		onValidateTeam: function (team, format) {
+			/**@type {{[k: string]: true}} */
 			let itemTable = {};
 			for (const set of team) {
 				let item = toId(set.item);
@@ -477,7 +484,9 @@ let BattleFormats = {
 			this.add('rule', 'Ability Clause: Limit two of each ability');
 		},
 		onValidateTeam: function (team, format) {
+			/**@type {{[k: string]: number}} */
 			let abilityTable = {};
+			/**@type {{[k: string]: string}} */
 			let base = {
 				airlock: 'cloudnine',
 				battlearmor: 'shellarmor',
@@ -542,6 +551,15 @@ let BattleFormats = {
 		banlist: ['Minimize', 'Double Team'],
 		onStart: function () {
 			this.add('rule', 'Evasion Moves Clause: Evasion moves are banned');
+		},
+	},
+	accuracymovesclause: {
+		effectType: 'ValidatorRule',
+		name: 'Accuracy Moves Clause',
+		desc: "Bans moves that have a chance to lower the target's accuracy when used",
+		banlist: ['Flash', 'Kinesis', 'Leaf Tornado', 'Mirror Shot', 'Mud Bomb', 'Mud-Slap', 'Muddy Water', 'Night Daze', 'Octazooka', 'Sand Attack', 'Smokescreen'],
+		onStart: function () {
+			this.add('rule', 'Accuracy Moves Clause: Accuracy-lowering moves are banned');
 		},
 	},
 	endlessbattleclause: {
@@ -783,6 +801,20 @@ let BattleFormats = {
 			}
 		},
 	},
+	arceusevclause: {
+		effectType: 'ValidatorRule',
+		name: 'Arceus EV Clause',
+		desc: "Restricts Arceus to a maximum of 100 EVs in any one stat",
+		onValidateSet(set, format) {
+			let template = this.getTemplate(set.species);
+			if (template.num === 493 && set.evs) {
+				for (let stat in set.evs) {
+					// @ts-ignore
+					if (set.evs[stat] > 100) return ["Arceus may not have more than 100 of any EVs."];
+				}
+			}
+		},
+	},
 	inversemod: {
 		effectType: 'Rule',
 		name: 'Inverse Mod',
@@ -827,12 +859,6 @@ let BattleFormats = {
 			return this.checkLearnset(move, template, lsetData, set);
 		},
 	},
-	allowonesketch: {
-		effectType: 'ValidatorRule',
-		name: 'Allow One Sketch',
-		desc: "Allows each Pok&eacute;mon to use one move they don't normally have access to via Sketch",
-		// Implemented in team-validator.js
-	},
 	allowcap: {
 		effectType: 'ValidatorRule',
 		name: 'Allow CAP',
@@ -844,22 +870,6 @@ let BattleFormats = {
 		name: 'Allow Tradeback',
 		desc: "Allows Gen 1 pokemon to have moves from their Gen 2 learnsets",
 		// Implemented in team-validator.js
-	},
-    bdtheorymonusumclause: {
-	    effectType: 'Rule',
-	    name: 'BD Theorymon USUM Clause',
-	    onStart: function () {
-	        this.add('rule', 'BD Theorymon New Clause: A team has to have at least two Pokémon with BD Theorymon New modification');
-	    },
-	    onValidateTeam: function (team, format) {
-	    	let BOTList = [];
-	        let TMcount = 0;
-	        let MinNumberOfMon = 0;
-	        for (let i = 0; i < team.length; i++) {
-	            if (BOTList.indexOf(team[i].species)>=0)TMcount++;
-	        }
-	        if (TMcount < MinNumberOfMon) return ["You have less than 2 Pokémon with BD Theorymon New modification"];
-	    }
 	},
 };
 
