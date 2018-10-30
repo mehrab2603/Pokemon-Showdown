@@ -83,6 +83,42 @@ class RandomBDarenaTeams extends RandomTeams {
 				signatureMove: 'Amake Diye Ki Hobe',
 				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
 			},
+			'Shaafique': {
+				species: 'Phanpy', ability: 'Huge Power', item: 'Eviolite', gender: 'M',
+				moves: ['Thousand Arrows', 'Extreme Speed', Stealth Rock'],
+				signatureMove: 'Phanchu Core',
+				evs: {hp:252, atk:252, def:4}, nature: 'Adamant',
+			},
+			'Nazib': {
+				species: 'Manaphy', ability: 'Torrent', item: 'Splash Plate', gender: 'M',
+				moves: ['Heart Swap', 'Steam Eruption', 'Grass Knot'],
+				signatureMove: 'MANAPHY4EVA',
+				evs: {hp:252, spd:128, spe:128}, nature: 'Timid',
+			},
+			'Uzair': {
+				species: 'Raikou', ability: 'Download', item: 'Magnet', gender: 'M',
+				moves: ['Nasty Plot', 'Ice Beam', 'Parabolic Charge'],
+				signatureMove: 'Heel Turn',
+				evs: {spa:252, spd:128, spe:128}, nature: 'Modest',
+			},
+			'Seyan': {
+				species: 'Scizor', ability: 'Technician', item: 'Leftovers', gender: 'M',
+				moves: ['Bullet Punch', 'Bug Bite', 'Ice Shard'],
+				signatureMove: 'Super Saiyan',
+				evs: {atk:252, def:128, spe:128}, nature: 'Adamant',
+			},
+			'Swagata': {
+				species: 'Alakazam', ability: 'Illusion', item: 'Focus Sash', gender: 'M',
+				moves: ['Protect', 'Psystrike', 'Dazzling Gleam'],
+				signatureMove: 'Blaziken Boost',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
+			},
+			'Shadman': {
+				species: 'Luxray', ability: 'Hustle', item: 'Bright Powder', gender: 'M',
+				moves: ['Bolt Strike', 'Gunk Shot', 'Power Whip'],
+				signatureMove: 'Five Knuckle Shuffle',
+				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			},
 		};
 		let pool = Object.keys(sets);
 		/** @type {{[type: string]: number}} */
