@@ -101,7 +101,7 @@ let BattleMovedex = {
 		onPrepareHit: function (target, source) {
 			this.add('-anim', source, "Cosmic Power", source);
 		},
-		boosts: {def: 1, spe: 1},
+		boosts: {spa: 1, def: 1, spe: 1},
 		secondary: null,
 		target: "self",
 		type: "Normal",
@@ -175,23 +175,19 @@ let BattleMovedex = {
 			if (!target.setType('Ghost')) return false;
 			this.add('-start', target, 'typechange', 'Ghost');
 		},
-		secondary: {
-			chance: 100,
-			boosts: {	
-				atk: -1,
-			},
-		},
+		secondary: false,
 		onPrepareHit: function (target, source) {
 			this.attrLastMove('[still]');
 			this.add('-anim', source, "Shadow Sneak", source);
 		},
+		boosts: {spe: 2},
 		target: "normal",
 		type: "Ghost",
 	},
 	// Shafi
 	fairandroughly: {
 		accuracy: 100,
-		basePower: 95,
+		basePower: 90,
 		category: "Physical",
 		id: "fairandroughly",
 		isViable: true,
@@ -238,153 +234,6 @@ let BattleMovedex = {
 		secondary: false,
 		target: "self",
 		type: "Dark",
-	},
-	// Shaafique
-	phanchucore: {
-		accuracy: true,
-		basePower: 0,
-		category: "Status",
-		id: "phanchucore",
-		isNonstandard: true,
-		name: "Phanchu Core",
-		pp: 10,
-		priority: 0,
-		flags: {mirror: 1, snatch: 1},
-		onHit: function (target, source) {
-			let dice = this.random(9);
-			if (dice === 1) {
-				this.add('-message', "Cannot beat this combination");
-				this.damage(source.maxhp / 2, source, source, 'phanchucore');
-				return false;
-			}
-			this.useMove('volttackle', source);
-			this.useMove('nuzzle', source);
-		},
-		secondary: false,
-		target: "self",
-		type: "Electric",
-	},
-	// Shadman
-	fiveknuckleshuffle: {
-		accuracy: 100,
-		basePower: 20, 
-		category: "Physical",
-		id: "fiveknuckleshuffle",
-		isNonstandard: true,
-		name: "Five Knuckle Shuffle",
-		pp: 10,
-		priority: 0,
-		flags: {protect: 1, mirror: 1},
-		self: {boosts: {accuracy: 1}},
-		onPrepareHit: function (target, source) {
-			this.attrLastMove('[still]');
-			this.add('-anim', source, "Minimize", target);
-			this.add('-message', 'You can\'t see me');
-		},
-		secondary: false,
-		target: "normal",
-		type: "Fighting",
-	},
-	// Uzair
-	heelturn: {
-		accuracy: 100,
-		basePower: 80,
-		category: "Special",
-		id: "heelturn",
-		isNonstandard: true,
-		name: "Heel Turn",
-		pp: 10,
-		priority: 0,
-		flags: {protect: 1, mirror: 1},
-		selfSwitch: true,
-		onPrepareHit: function (target, source) {
-			this.attrLastMove('[still]');
-			this.add('-anim', source, "Volt Switch", target);
-			this.add('-message', 'Watch my new upload!');
-		},
-		secondary: {
-			chance: 100,
-			status: 'tox',
-		},
-		target: "normal",		
-		type: "Dark",
-	},
-	// Seyan
-	supersaiyan: {
-		accuracy: true,
-		basePower: 0,
-		category: "Status",
-		id: "supersaiyan",
-		isNonstandard: true,
-		name: "Super Saiyan",
-		pp: 5,
-		priority: 0,
-		flags: {snatch: 1},
-		boosts: {
-			def: 2,
-			atk: 1,
-		},
-		secondary: false,
-		target: "self",
-		onPrepareHit: function (target, source) {
-			this.attrLastMove('[still]');
-			this.add('-anim', source, "Bulk Up", target);
-			this.add('-message', 'Not even my final form!');
-		},
-		type: "Fighting",
-	},
-	// Nazib
-	manaphy4eva: {
-		accuracy: true,
-		basePower: 0,
-		category: "Status",
-		id: "manaphy4eva",
-		name: "MANAPHY4EVA",
-		isNonstandard: true,
-		pp: 5,
-		priority: 0,
-		flags: {snatch: 1, heal: 1},
-		heal: [2, 10],
-		flags: {mirror: 1, protect: 1},
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, 'Rain Dance', target);
-		},
-		onAfterMoveSecondarySelf: function () {
-			this.setWeather('raindance');
-		},
-		secondary: null,
-		target: "normal",
-		type: "Water",
-	},
-	// Swagata
-	blazikenboost: {
-		accuracy: true,
-		basePower: 0,
-		id: "blazikenboost",
-		name: "Blaziken Boost",
-		isNonstandard: true,
-		pp: 5,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1},
-		onTryMovePriority: 100,
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, "Acupressure", source);
-			this.add('-anim', source, "Flare Blitz", source);
-		},
-		onHit: function (target, source) {
-			source.addVolatile('focusenergy', source);
-		},
-		boosts: {
-			spe: 1,
-		},
-		target: "self",
-		type: "Fire",
 	},
 	// Modified Moves \\
 	// Purple Pills is immune to taunt
