@@ -368,7 +368,6 @@ let BattleMovedex = {
 	blazikenboost: {
 		accuracy: true,
 		basePower: 0,
-		category: "Status",
 		id: "blazikenboost",
 		name: "Blaziken Boost",
 		isNonstandard: true,
