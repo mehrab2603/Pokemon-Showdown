@@ -96,7 +96,7 @@ class RandomBDarenaTeams extends RandomTeams {
 				evs: {hp:252, spd:128, spe:128}, nature: 'Timid',
 			},
 			'Uzair': {
-				species: 'Raikou', ability: 'Download', item: 'Black Glasses', gender: 'M',
+				species: 'Raikou', ability: 'Download', item: 'Magnet', gender: 'M',
 				moves: ['Nasty Plot', 'Ice Beam', 'Parabolic Charge'],
 				signatureMove: 'Heel Turn',
 				evs: {spa:252, spd:128, spe:128}, nature: 'Modest',
