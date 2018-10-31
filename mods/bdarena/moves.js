@@ -235,7 +235,7 @@ let BattleMovedex = {
 		target: "self",
 		type: "Dark",
 	},
-        // Shaafique
+	// Shaafique
     phanchucore: {
         accuracy: true,
         category: "Status",
@@ -265,7 +265,7 @@ let BattleMovedex = {
 		effect: {
 			duration: 3,
 			onStart: function (target) {
-				if (target.activeTurns && !			this.useMove('nuzzle', source);this.willMove(target)) {
+				if (target.activeTurns && !this.willMove(target)) {
 					this.effectData.duration++;
 				}
 				this.add('-start', target, 'move: Taunt');
