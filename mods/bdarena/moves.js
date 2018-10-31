@@ -236,27 +236,31 @@ let BattleMovedex = {
 		type: "Dark",
 	},
 	// Shaafique
-    phanchucore: {
-        accuracy: true,
-        category: "Status",
-        id: "phanchucore",
-        name: "Phanchu Core",
-        isNonstandard: true,
-        pp: 10,
-        priority: 0,
-        flags: {snatch: 1, mirror: 1, dance: 1},
-        onTryMovePriority: 100,
-        onTryMove: function () {
-            this.attrLastMove('[still]');
-        },
-        onPrepareHit: function (target, source) {
-            this.add('-anim', source, "Cosmic Power", source);
-        },
-        boosts: {def: 1, spe: 1},
-        secondary: null,
-        target: "self",
-        type: "Normal",
-    },
+	phanchucore: {
+		accuracy: true,
+		basePower: 0,
+		category: "Status",
+		id: "phanchucore",
+		isNonstandard: true,
+		isViable: true,
+		name: "Phanchu Core",
+		pp: 10,
+		priority: 0,
+		flags: {mirror: 1, snatch: 1},
+		onHit: function (target, source) {
+			let dice = this.random(9);
+			if (dice === 1) {
+				this.add('-message', "Cannot beat this combination");
+				this.damage(source.maxhp / 2, source, source, 'phanchucore');
+				return false;
+			}
+			this.useMove('volttackle', source);
+			this.useMove('nuzzle', source);
+		},
+		secondary: false,
+		target: "self",
+		type: "Electric",
+	},
 	// Modified Moves \\
 	// Purple Pills is immune to taunt
 	"taunt": {
