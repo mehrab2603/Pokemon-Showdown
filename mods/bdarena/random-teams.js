@@ -83,30 +83,6 @@ class RandomBDarenaTeams extends RandomTeams {
 				signatureMove: 'Amake Diye Ki Hobe',
 				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
 			},
-			'Shaafique': {
-				species: 'Phanpy', ability: 'Huge Power', item: 'Eviolite', gender: 'M',
-				moves: ['Thousand Arrows', 'Extreme Speed', 'Stealth Rock'],
-				signatureMove: 'Phanchu Core',
-				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
-			},
-			'Uzair': {
-				species: 'Raikou', ability: 'Download', item: 'Black Glasses', gender: 'M',
-				moves: ['Nasty Plot', 'Parabolic Charge', 'Ice Beam'],
-				signatureMove: 'Heel Turn',
-				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
-			},
-			'Swagata': {
-				species: 'Alakazam', ability: 'Illusion', item: 'Focus Sash', gender: 'M',
-				moves: ['Psystrike', 'Dazzling Gleam', 'Protect'],
-				signatureMove: 'Blaziken Boost',
-				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
-			},
-			'Nazib': {
-				species: 'Manaphy', ability: 'Torrent', item: 'Mystic Water', gender: 'M',
-				moves: ['Heart Swap', 'Sparkling Aria', 'Ice Beam'],
-				signatureMove: 'MANAPHY4EVA',
-				evs: {spa:252, spd:4, spe:252}, nature: 'Modest',
-			},
 		};
 		let pool = Object.keys(sets);
 		/** @type {{[type: string]: number}} */
