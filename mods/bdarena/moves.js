@@ -250,8 +250,8 @@ let BattleMovedex = {
             this.attrLastMove('[still]');
         },
         onHit: function (target, source) {
-			this.useMove('Nuzzle', source);
-			this.useMove('Volt Tackle', source);
+			this.useMove('nuzzle', source);
+			this.useMove('volttackle', source);
 		},
         secondary: null,
         target: "self",
