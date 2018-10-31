@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 exports.BattleScripts = {
    init: function () {
@@ -18,12 +18,7 @@ exports.BattleScripts = {
      }
 
      //New Moves
-     this.modData('Learnsets', 'kommoo').learnset.dragonhammer = ['7T'];
-     this.modData('Learnsets', 'kommoo').learnset.closecombat = ['7T'];
-     this.modData('Learnsets', 'incineroar').learnset.suckerpunch = ['7T'];
-     this.modData('Learnsets', 'golemalola').learnset.firepunch = ['7T'];
      this.modData('Learnsets', 'silvally').learnset.recover = ['7T'];
-     this.modData('Learnsets', 'palossand').learnset.stealthrock = ['7T'];
      this.modData('Learnsets', 'primarina').learnset.wish = ['7T'];     
      this.modData('Learnsets', 'golurk').learnset.shiftgear = ['7T'];
      this.modData('Learnsets', 'mismagius').learnset.moonblast = ['7T'];

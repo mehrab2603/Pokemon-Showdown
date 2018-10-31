@@ -164,24 +164,6 @@ exports.BattleAbilities = {
 		rating: 4,
 		num: 225,
 	},
-	"gooey": {
-		shortDesc: "Pokemon making contact with this Pokemon have their Speed lowered by 1 stage.",
-		onSourceModifyDamage: function (damage, source, target, move) {
-			let mod = 1;
-			if (move.flags['contact']) mod /= 1.2;
-			return this.chainModify(mod);
-		},
-		onAfterDamage: function (damage, target, source, effect) {
-			if (effect && effect.flags['contact']) {
-				this.add('-ability', target, 'Gooey');
-				this.boost({spe: -1}, source, target, null, true);
-			}
-		},
-		id: "gooey",
-		name: "Gooey",
-		rating: 2.5,
-		num: 183,
-	},
 	"toxicboost": {
 		desc: "While this Pokemon is poisoned, the power of its physical attacks is multiplied by 1.5.",
 		shortDesc: "While this Pokemon is poisoned, its physical attacks have 1.5x power.",
