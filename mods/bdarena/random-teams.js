@@ -83,6 +83,12 @@ class RandomBDarenaTeams extends RandomTeams {
 				signatureMove: 'Amake Diye Ki Hobe',
 				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
 			},
+			'Shaafique': {
+				species: 'Phanpy', ability: 'Huge Power', item: 'Eviolite', gender: 'M',
+				moves: ['Thousand Arrows', 'Extreme Speed', 'Stealth Rock'],
+				signatureMove: 'Phanchu Core',
+				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			}
 		};
 		let pool = Object.keys(sets);
 		/** @type {{[type: string]: number}} */
