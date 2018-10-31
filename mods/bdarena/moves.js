@@ -246,6 +246,9 @@ let BattleMovedex = {
 		pp: 10,
 		priority: 0,
 		flags: {mirror: 1, snatch: 1},
+		onPrepareHit: function (target, source) {
+			this.attrLastMove('[still]');
+		},
 		onHit: function (target, source) {
 			let dice = this.random(9);
 			if (dice === 1) {
