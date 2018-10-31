@@ -236,7 +236,7 @@ let BattleMovedex = {
 		type: "Dark",
 	},
 	// Shaafique
-	phanchucore: {
+	/*phanchucore: {
 		accuracy: true,
 		category: "Status",
 		id: "phanchucore",
@@ -259,7 +259,7 @@ let BattleMovedex = {
 		secondary: false,
 		target: "self",
 		type: "Electric",
-	},
+	},*/
 	// Modified Moves \\
 	// Purple Pills is immune to taunt
 	"taunt": {
