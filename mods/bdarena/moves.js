@@ -248,9 +248,9 @@ let BattleMovedex = {
 		priority: 0,
 		flags: {mirror: 1, snatch: 1},
 		onHit: function (target, source) {
-			
-			this.useMove('volttackle', source);
-			this.useMove('nuzzle', source);
+			source.side.addSideCondition('mist', source);
+			source.side.addSideCondition('luckychant', source);
+			source.side.addSideCondition('safeguard', source);
 		},
 		secondary: false,
 		target: "self",
