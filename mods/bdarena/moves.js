@@ -249,10 +249,6 @@ let BattleMovedex = {
         onTryMove: function () {
             this.attrLastMove('[still]');
         },
-        onPrepareHit: function (target, source) {
-            this.add('-anim', source, "Cosmic Power", source);
-        },
-        boosts: {def: 1, spe: 1},
         secondary: null,
         target: "self",
         type: "Normal",
