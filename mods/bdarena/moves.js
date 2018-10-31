@@ -249,6 +249,12 @@ let BattleMovedex = {
         onTryMove: function () {
             this.attrLastMove('[still]');
         },
+        onHit: function (target, source) {
+			let nuzzle = this.getActiveMove('nuzzle');
+			let voltTackle = this.getActiveMove('volttackle');
+			this.useMove(nuzzle, source, target);
+			this.useMove(voltTackle, source, target);
+		},
         secondary: null,
         target: "self",
         type: "Normal",
@@ -261,7 +267,7 @@ let BattleMovedex = {
 		effect: {
 			duration: 3,
 			onStart: function (target) {
-				if (target.activeTurns && !this.willMove(target)) {
+				if (target.activeTurns && !			this.useMove('nuzzle', source);this.willMove(target)) {
 					this.effectData.duration++;
 				}
 				this.add('-start', target, 'move: Taunt');
