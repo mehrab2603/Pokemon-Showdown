@@ -252,7 +252,7 @@ let BattleMovedex = {
 			source.side.addSideCondition('luckychant', source);
 			source.side.addSideCondition('safeguard', source);
 		},
-		secondary: false,
+		secondary: null,
 		target: "self",
 		type: "Electric"
 	},
