@@ -140,8 +140,9 @@ let BattleScripts = {
 	useMoveInner(moveOrMoveName, pokemon, target, sourceEffect, zMove) {
 		if (!sourceEffect && this.effect.id) sourceEffect = this.effect;
 		if (sourceEffect && sourceEffect.id === 'instruct') sourceEffect = null;
-
+debugger;
 		let move = this.getActiveMove(moveOrMoveName);
+		console.log('phanchucore', move);
 		if (move.id === 'weatherball' && zMove) {
 			// Z-Weather Ball only changes types if it's used directly,
 			// not if it's called by Z-Sleep Talk or something.
