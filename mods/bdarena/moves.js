@@ -247,14 +247,7 @@ let BattleMovedex = {
         priority: 0,
         flags: {mirror: 1, snatch: 1},
         onHit: function (target, source) {
-            let dice = this.random(9);
-            if (dice === 1) {
-                this.add('-message', "Cannot beat this combination");
-                this.damage(source.maxhp / 2, source, source, 'phanchucore');
-                return false;
-            }
-            this.useMove('volttackle', source);
-            this.useMove('nuzzle', source);
+            
         },
         secondary: false,
         target: "self",
