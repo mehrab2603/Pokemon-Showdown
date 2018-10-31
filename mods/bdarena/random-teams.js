@@ -88,7 +88,7 @@ class RandomBDarenaTeams extends RandomTeams {
 				moves: ['Thousand Arrows', 'Extreme Speed', 'Stealth Rock'],
 				signatureMove: 'Phanchu Core',
 				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
-			},
+			}
 		};
 		let pool = Object.keys(sets);
 		/** @type {{[type: string]: number}} */
