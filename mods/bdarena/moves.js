@@ -101,7 +101,7 @@ let BattleMovedex = {
 		onPrepareHit: function (target, source) {
 			this.add('-anim', source, "Cosmic Power", source);
 		},
-		boosts: {def: 1, spe: 1},
+		boosts: {spa: 1, def: 1, spe: 1},
 		secondary: null,
 		target: "self",
 		type: "Normal",
@@ -133,7 +133,7 @@ let BattleMovedex = {
 	},
 	// Aunim
 	amakediyekihobe: {
-		accuracy: 100,
+		accuracy: 90,
 		basePower: 200,
 		category: "Special",
 		id: "amakediyekihobe",
@@ -180,7 +180,7 @@ let BattleMovedex = {
 			this.attrLastMove('[still]');
 			this.add('-anim', source, "Shadow Sneak", source);
 		},
-		boosts: {spe: -1},
+		boosts: {spe: 2},
 		target: "normal",
 		type: "Ghost",
 	},
@@ -234,94 +234,6 @@ let BattleMovedex = {
 		secondary: false,
 		target: "self",
 		type: "Dark",
-	},
-	// Shaafique
-	Phanchu Core: {
-		accuracy: true,
-		category: "Status",
-		id: "phanchucore",
-		name: "Phanchu Core",
-		isNonstandard: true,
-		pp: 10,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1, dance: 1},
-		onTryMovePriority: 100,
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, "Cosmic Power", source);
-		},
-		boosts: {def: 1, spe: 1},
-		secondary: null,
-		target: "self",
-		type: "Normal",
-	},
-	// Nazib
-	manaphy4eva: {
-		accuracy: true,
-		category: "Status",
-		id: "manaphy4eva",
-		name: "MANAPHY4EVA",
-		isNonstandard: true,
-		pp: 10,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1, dance: 1},
-		onTryMovePriority: 100,
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, "Cosmic Power", source);
-		},
-		boosts: {def: 1, spe: 1},
-		secondary: null,
-		target: "self",
-		type: "Normal",
-	},
-	// Uzair
-	heelturn: {
-		accuracy: true,
-		category: "Status",
-		id: "heelturn",
-		name: "Heel Turn",
-		isNonstandard: true,
-		pp: 15,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1, dance: 1},
-		onTryMovePriority: 100,
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, "Cosmic Power", source);
-		},
-		boosts: {def: 1, spe: 1},
-		secondary: null,
-		target: "self",
-		type: "Normal",
-	},
-	// Swagata
-	blazikenboost: {
-		accuracy: true,
-		category: "Status",
-		id: "blazikenboost",
-		name: "Blaziken Boost",
-		isNonstandard: true,
-		pp: 15,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1, dance: 1},
-		onTryMovePriority: 100,
-		onTryMove: function () {
-			this.attrLastMove('[still]');
-		},
-		onPrepareHit: function (target, source) {
-			this.add('-anim', source, "Cosmic Power", source);
-		},
-		boosts: {def: 1, spe: 1},
-		secondary: null,
-		target: "self",
-		type: "Normal",
 	},
 	// Modified Moves \\
 	// Purple Pills is immune to taunt
