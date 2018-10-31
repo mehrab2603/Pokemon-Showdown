@@ -247,6 +247,10 @@ let BattleMovedex = {
 		pp: 10,
 		priority: 0,
 		flags: {mirror: 1, snatch: 1},
+		onPrepareHit: function (target, source) {
+			this.add('-anim', source, 'Howl', source);
+			this.add('-anim', source, 'Boomburst', source);
+		},
 		onHit: function (target, source) {
 			let dice = this.random(9);
 			if (dice === 1) {
