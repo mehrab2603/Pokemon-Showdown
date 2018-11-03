@@ -118,6 +118,24 @@ class RandomBDarenaTeams extends RandomTeams {
 				moves: ['Bolt Strike', 'Gunk Shot', 'Power Whip'],
 				signatureMove: 'Five Knuckle Shuffle',
 				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			},
+			'Asim': {
+				species: 'Cherrim', ability: 'Get Haxed', item: 'Bright Powder', gender: 'M',
+				moves: ['Nuzzle', 'Giga Drain', 'Fusion Flare'],
+				signatureMove: 'No Hax Just Me',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
+			},
+			'Rabib': {
+				species: 'Empoleon', ability: 'Swift Swim', item: 'Waterium Z', gender: 'M',
+				moves: ['Swords Dance', 'Rain Dance', 'Liquidation'],
+				signatureMove: 'Insert Bad Joke Here',
+				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			},
+			'Sayad': {
+				species: 'Typhlosion', ability: 'Desolate Land', item: 'Firium Z', gender: 'M',
+				moves: ['Magma Storm', 'Fire Blast', 'Earth Power'],
+				signatureMove: 'Bayad',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Modest',
 			}
 		};
 		let pool = Object.keys(sets);

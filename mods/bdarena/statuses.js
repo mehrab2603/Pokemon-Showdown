@@ -46,7 +46,7 @@ let BattleStatuses = {
 	muhib: {
 		noCopy: true,
 		onStart: function () {
-			this.add(`c|Muhib|Ei group e post dite bole amar permission lage na`);
+			this.add(`c|Muhib|Ei group e post dite hole amar permission lage na`);
 		},
 		onSwitchOut: function () {
 			this.add(`c|Muhib|pika pika pika chu`);
@@ -167,7 +167,6 @@ let BattleStatuses = {
 		onFaint: function () {
 			this.add(`c|Shadman|The world is filled with many unique psychological views. I just can'/t understand some of them`);
 		},
-	},
 	},
 	// Custom effect for Yuki
 	cutietrap: {
