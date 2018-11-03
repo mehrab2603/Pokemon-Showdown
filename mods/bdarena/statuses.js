@@ -67,6 +67,108 @@ let BattleStatuses = {
 			this.add(`c|Shafi|-_-`);
 		},
 	},
+	arifeen: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Arifeen|OMG SURPRISE DOGGO`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Arifeen|Timer on kor`);
+		},
+		onFaint: function () {
+			this.add(`c|Arifeen|Going back to study, have an exam tomorrow`);
+		},
+	},
+	akash: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Akash|Chumma`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Akash|Wadu heck`);
+		},
+		onFaint: function () {
+			this.add(`c|Akash|Ma nama Jeff`);
+		},
+	},
+	aunim: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Aunim|Ki ase jibone`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Aunim|Please use me`);
+		},
+		onFaint: function () {
+			this.add(`c|Aunim|Sigh. As expected`);
+		},
+	},
+	shaafique: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Shaafique|Fekasu reporting for duty`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Shaafique|Next time, boss`);
+		},
+		onFaint: function () {
+			this.add(`c|Shaafique|Phanpy and Pikachu still best combination`);
+		},
+	},
+	nazib: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Nazib|Mana-chan <3`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Nazib|Yay this Manaphy has a way to hit Water-types!`);
+		},
+		onFaint: function () {
+			this.add(`c|Nazib|Glad`);
+		},
+	},
+	seyan: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Seyan|Activating ultimate power`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Seyan|Not even my final form`);
+		},
+		onFaint: function () {
+			this.add(`c|Seyan|Scizor OP`);
+		},
+	},
+	uzair: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Uzair|Whats going on ladies and gentlemen the Uzigunner here with another UBL match`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Uzair|Your friendly neighbourhood stutterman will be back`);
+		},
+		onFaint: function () {
+			this.add(`c|Uzair|This was the Uzigunner, signing out. PHISH!`);
+		},
+	},
+	swagata: {
+		noCopy: true,
+		onFaint: function () {
+			this.add(`c|Swagata|... How did you know`);
+		},
+	shadman: {
+		noCopy: true,
+		onStart: function () {
+			this.add(`c|Shadman|TUTUTUTUTTUUTU trumpet noise`);
+		},
+		onSwitchOut: function () {
+			this.add(`c|Shadman|Put kora Dipjol`);
+		},
+		onFaint: function () {
+			this.add(`c|Shadman|The world is filled with many unique psychological views. I just can'/t understand some of them`);
+		},
+	},
+	},
 	// Custom effect for Yuki
 	cutietrap: {
 		duration: 5,
