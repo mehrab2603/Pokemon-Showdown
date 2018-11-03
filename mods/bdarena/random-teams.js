@@ -118,6 +118,36 @@ class RandomBDarenaTeams extends RandomTeams {
 				moves: ['Bolt Strike', 'Gunk Shot', 'Power Whip'],
 				signatureMove: 'Five Knuckle Shuffle',
 				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			},
+			'Asim': {
+				species: 'Cherrim', ability: 'Flower Gift', item: 'Bright Powder', gender: 'M',
+				moves: ['Nuzzle', 'Giga Drain', 'Fusion Flare'],
+				signatureMove: 'No Hax Just Me',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Timid',
+			},
+			'Sayad': {
+				species: 'Typhlosion', ability: 'Desolate Land', item: 'Firium Z', gender: 'M',
+				moves: ['Magma Storm', 'Earth Power', 'Thunder Punch'],
+				signatureMove: 'Bayad',
+				evs: {spa:252, spd:4, spe:252}, nature: 'Modest',
+			},
+			'Rabib': {
+				species: 'Empoleon', ability: 'Swift Swim', item: 'Waterium Z', gender: 'M',
+				moves: ['Liquidation', 'Anchor Shot', 'Rain Dance'],
+				signatureMove: 'Insert Bad Joke Here',
+				evs: {atk:252, spd:4, spe:252}, nature: 'Jolly',
+			},
+			'Subarno': {
+				species: 'Metagross', ability: 'Hustle', item: 'Air Balloon', gender: 'M',
+				moves: ['Stone Edge', 'Zen Headbutt', 'High Jump Kick'],
+				signatureMove: 'Of Course It Missed',
+				evs: {atk:252, def:128, spe:128}, nature: 'Jolly',
+			},		
+			'Irtiza': {
+				species: 'Metagross', ability: 'Cute Charm', item: 'Metal Coat', gender: 'F',
+				moves: ['Meteor Mash', 'Bullet Punch', 'Zen Headbutt'],
+				signatureMove: 'Kawaiiest Apu',
+				evs: {hp: 252, atk:252, spe:4}, nature: 'Adamant',
 			}
 		};
 		let pool = Object.keys(sets);
