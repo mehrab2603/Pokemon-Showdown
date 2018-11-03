@@ -101,7 +101,7 @@ let BattleMovedex = {
 		onPrepareHit: function (target, source) {
 			this.add('-anim', source, "Cosmic Power", source);
 		},
-		boosts: {spa: 1, def: 1, spe: 1},
+		boosts: {def: 1, spe: 1},
 		secondary: null,
 		target: "self",
 		type: "Normal",
@@ -180,7 +180,7 @@ let BattleMovedex = {
 			this.attrLastMove('[still]');
 			this.add('-anim', source, "Shadow Sneak", source);
 		},
-		boosts: {spe: 2},
+		self: {boosts: {def: 1, spd: 1}},
 		target: "normal",
 		type: "Ghost",
 	},
@@ -230,6 +230,7 @@ let BattleMovedex = {
 			source.side.addSideCondition('mist', source);
 			source.side.addSideCondition('luckychant', source);
 			source.side.addSideCondition('safeguard', source);
+			this.useMove('Taunt', source);
 		},
 		secondary: false,
 		target: "self",
@@ -346,8 +347,6 @@ let BattleMovedex = {
 		isViable: true,
 		pp: 5,
 		priority: 0,
-		flags: {snatch: 1, heal: 1},
-		heal: [2, 10],
 		flags: {mirror: 1, protect: 1},
 		onTryMove: function () {
 			this.attrLastMove('[still]');
@@ -358,7 +357,7 @@ let BattleMovedex = {
 		onAfterMoveSecondarySelf: function () {
 			this.setWeather('raindance');
 		},
-		secondary: null,
+		secondary: false,
 		target: "normal",
 		type: "Water",
 	},
