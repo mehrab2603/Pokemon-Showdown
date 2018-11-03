@@ -390,33 +390,6 @@ let BattleMovedex = {
 		target: "self",
 		type: "Fire",
 	},
-	// Sayad
-	bayad: {
-		accuracy: true,
-		basePower: 0,
-		category: "Status",
-		id: "bayad",
-		name: "Bayad",
-		isNonstandard: true,
-		isViable: true,
-		pp: 5,
-		priority: 0,
-		flags: {snatch: 1, mirror: 1},
-		onTryMovePriority: 100,
-		boosts: {
-			def: -2,
-		},
-		volatileStatus: 'confusion',
-		status: 'brn',
-		onPrepareHit: function (target, source) {
-			this.attrLastMove('[still]');
-			this.add('-anim', source, "U-turn", target);
-			this.add('-message', 'bye');
-		},
-		target: "self",
-		selfSwitch: true,
-		type: "Fire",
-	},
 	// Modified Moves \\
 	// Purple Pills is immune to taunt
 	"taunt": {
