@@ -6,6 +6,7 @@ const fs = require('fs');
 const noop = () => {};
 
 before('initialization', function () {
+	this.timeout(0); // Remove timeout limitation
 	process.on('unhandledRejection', err => {
 		// I'd throw the err, but we have a heisenbug on our hands and I'd
 		// rather not have it screw with Travis in the interim
@@ -20,13 +21,21 @@ before('initialization', function () {
 		if (err.code !== 'MODULE_NOT_FOUND' && err.code !== 'ENOENT') throw err; // Should never happen
 
 		console.log("config.js doesn't exist - creating one with default settings...");
-		fs.writeFileSync(path.resolve(__dirname, '../config/config.js'),
+		fs.writeFileSync(
+			path.resolve(__dirname, '../config/config.js'),
 			fs.readFileSync(path.resolve(__dirname, '../config/config-example.js'))
 		);
 	} finally {
 		config = require('../config/config');
 	}
-	require('./../lib/process-manager').disabled = true;
+	require('./../.lib-dist/process-manager').disabled = true;
+
+	Object.assign(config, require('../config/config-example'));
+	// stop chatrooms from loading through modifying the require cache
+	try {
+		const chatrooms = require('../config/chatrooms.json');
+		chatrooms.splice(0, chatrooms.length);
+	} catch (e) {}
 
 	// Actually crash if we crash
 	config.crashguard = false;
@@ -34,12 +43,15 @@ before('initialization', function () {
 	config.watchconfig = false;
 	// Don't try to write to file system
 	config.nofswriting = true;
+	// Test a normal ladder
+	config.fakeladder = false;
 
 	// Don't create a REPL
-	require('../lib/repl').start = noop;
+	require('../.lib-dist/repl').Repl.start = noop;
 
 	// Start the server.
-	require('../app');
+	// NOTE: This used "server" before when we needed ".server-dist"
+	require('../.server-dist');
 
 	LoginServer.disabled = true;
 
