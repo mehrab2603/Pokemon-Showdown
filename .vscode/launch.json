@@ -7,25 +7,25 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Run Mocha Tests",
-            "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
-            "args": [
-                "--timeout",
-                "999999",
-                "--colors",
-                "-g",
-                // Make this string non-empty to run only tests whose names match it
-                ""
-            ],
-            "internalConsoleOptions": "openOnSessionStart"
+            "name": "Start Server",
+            "program": "${workspaceFolder}\\app.js"
         },
         {
             "type": "node",
             "request": "launch",
-            "name": "Parse input log (paste in terminal)",
-            "program": "${workspaceRoot}/pokemon-showdown",
-            "args": ["simulate-battle", "-R"],
-            "console": "integratedTerminal"
+            "name": "Run Mocha Tests",
+            "program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+            "args": [
+                "-u",
+                "tdd",
+                "--timeout",
+                "999999",
+                "--colors",
+                "-f",
+                // Make this string non-empty to run only tests whose names match it
+                ""
+            ],
+            "internalConsoleOptions": "openOnSessionStart"
         },
     ]
 }
