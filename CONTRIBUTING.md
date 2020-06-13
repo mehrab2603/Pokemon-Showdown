@@ -5,7 +5,7 @@ In general, we welcome pull requests that fix bugs.
 
 For feature additions and large projects, please discuss with us at http://psim.us/development first. We'd hate to have to reject a pull request that you spent a long time working on...
 
-If you're looking for inspiration for something to do, the Ideas issue is a good place to look: https://github.com/Zarel/Pokemon-Showdown/issues/2444
+If you're looking for inspiration for something to do, the Ideas issue is a good place to look: https://github.com/smogon/pokemon-showdown/issues/2444
 
 
 License
@@ -75,7 +75,14 @@ Looking at your surrounding text is also a way to get a good idea of our coding 
 
 The codebase currently uses a mix of `"` and `'` and `` ` `` for strings.
 
-Our current convention is to use `'` for IDs; `"` for names (i.e. usernames, move names, etc), English text in object literals such as in `data/`, and help entries of chat commands; and `` ` `` for code (i.e. protocol code and HTML) and English text outside of object literals (yes, including strings that don't need interpolation). As far as I know, we don't use strings for anything else, but if you need to use strings in a way that doesn't conform the the above three, ask Zarel in the Development chatroom to decide (and default to `` ` `` in lieu of a decision).
+Our current quote convention is to use:
+
+- `` ` `` as in `` `move-${move.id}` `` for any string that needs interpolation, otherwise:
+- `` ` `` as in `` `<strong>Fire Blast</strong>` `` for code meant to be fed to an interpreter/tokenizer before being displayed to the user; i.e. protocol code and HTML
+- `'` as in `'fireblast'` for any string not meant to be displayed to the user; i.e. IDs
+- `"` as in `"Fire Blast"` for any string meant to be displayed verbatim to the user; i.e. names (i.e. usernames, move names, etc), most English text, and help entries of chat commands
+
+As far as I know, we don't use strings for anything else, but if you need to use strings in a way that doesn't conform to the above three, ask Zarel in the Development chatroom to decide (and default to `` ` `` in lieu of a decision).
 
 Unfortunately, since this is not a convention the linter can test for (and also because our older string standards predate PS), a lot of existing code is wrong on this, so you can't look at surrounding code to get an idea of what the convention should be. Refer to the above paragraph as the definitive rule.
 
@@ -89,7 +96,7 @@ Some even older code returns `T | false`. This is a very old PHP convention that
 
 ### `false | null | undefined`
 
-The simulator (code in `sim/`, `data/`, and `mods/`) will often have functions with return signatures of the form `T | false | null | undefined`, especially in event handlers. These aren't optionals, they're different sentinel values.
+The simulator (code in `sim/` and `data/`) will often have functions with return signatures of the form `T | false | null | undefined`, especially in event handlers. These aren't optionals, they're different sentinel values.
 
 Specifically:
 
@@ -102,6 +109,18 @@ So, if Thunder Wave hits a Ground type, the immunity checker returns `false` to 
 If Volt Absorb absorbs Thunder Wave, Volt Absorb's TryHit handler shows the Volt Absorb message and returns `null` to indicate that no other failure message should be shown.
 
 If Water Absorb doesn't absorb Thunder Wave, Water Absorb's TryHit handler returns `undefined`, to show that Water Absorb does not interact with Thunder Wave.
+
+### `??` vs `||`
+
+We prefer using `||` instead of `??` for fallback, for a few reasons:
+
+- `sucrase` (our TypeScript to JavaScript compiler) makes `??` rather more complicated than ideal.
+
+- We rarely treat `0` or `''` differently from `null` (the same reason we use `!foo` instead of `foo == null` for null checks)
+
+- TypeScript does not actually allow us to have "non-empty strings" or "positive integers" as a type, so we have to deal with those cases no matter what.
+
+If, at a future point, TypeScript does allow us to constrain types better, we might consider using `??` for clarity. But for now, I see no reason to use `??` except in very niche situations where the difference matters.
 
 
 ES5 and ES6
@@ -142,3 +161,11 @@ In general, use modern features; recent versions of V8 have fixed the performanc
 - **Template strings: ALWAYS** - Supported in Node 4+ and good performance in Node 6+; please start refactoring existing code over, but be careful not to use them for IDs (follow the String standards). Look at existing uses for guidance.
 
 Take "good performance" to mean "approximately on par with ES3" and "great performance" to mean "better than ES3".
+
+
+TypeScript Features
+------------------------------------------------------------------------
+
+- **Constant Enums: NEVER** - Not supported by Sucrase our current choice of transpiler.
+
+- **Default Properties: NEVER** - Bad performance when used with Sucrase. Prefer setting properties directly in a constructor instead.

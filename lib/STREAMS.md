@@ -42,7 +42,7 @@ Writes to the stream. `writeStream.write(null)` is equivalent to `writeStream.en
 
 Writes a line to the stream. Equivalent to `writeStream.write(chunk + '\n')`.
 
-### writeStream.end()
+### writeStream.writeEnd()
 
 * Returns: {Promise<void>} for when the stream finishes.
 
@@ -123,6 +123,8 @@ await stream.readDelimitedBy(','); // Promise<null> - NOT Promise<''>
 ### readStream.peek(byteCount, [encoding])
 
 Like `readStream.read`, but doesn't remove the read data from the read queue.
+
+Can return synchronously. Use `await` or wrap the return value in `Promise.resolve()` if you need a Promise.
 
 ### readStream.readBuffer()
 ### readStream.readBuffer(byteCount)

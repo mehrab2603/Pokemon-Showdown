@@ -51,25 +51,55 @@ exports.wsdeflate = {
 }; */
 
 /**
- * TODO: allow SSL to actually be possible to use for third-party servers at
- * some point.
+ * ssl - support WSS, allowing you to access through HTTPS
+ *  The client requires port 443, so if you use a different port here,
+ *  it will need to be forwarded to 443 through iptables rules or
+ *  something.
+ * @type {{port: number, options: {key: string, cert: string}} | null}
+ */
+exports.ssl = null;
+
+/*
+// example:
+exports.ssl = {
+	port: 443,
+	options: {
+		key: './config/ssl/privkey.pem',
+		cert: './config/ssl/fullchain.pem',
+	},
+};
+*/
+
+/*
+Main's SSL deploy script from Let's Encrypt looks like:
+	cp /etc/letsencrypt/live/sim.psim.us/privkey.pem ~user/Pokemon-Showdown/config/ssl/
+	cp /etc/letsencrypt/live/sim.psim.us/fullchain.pem ~user/Pokemon-Showdown/config/ssl/
+	chown user:user ~user/Pokemon-Showdown/config/ssl/privkey.pem
+	chown user:user ~user/Pokemon-Showdown/config/ssl/fullchain.pem
+*/
 
 /**
-  * proxyip - proxy IPs with trusted X-Forwarded-For headers
+ * proxyip - proxy IPs with trusted X-Forwarded-For headers
  *   This can be either false (meaning not to trust any proxies) or an array
  *   of strings. Each string should be either an IP address or a subnet given
  *   in CIDR notation. You should usually leave this as `false` unless you
- *   know what you are doing.
+ *   know what you are doing
+ * @type {false | string[]}.
  */
 exports.proxyip = false;
 
 /**
- * ofe - write heapdumps if sockets.js workers run out of memory.
+ * ofe - write heapdumps if the main process or sockets processes run out of memory.
  *   If you wish to enable this, you will need to install node-oom-heapdump,
  *   as it is sometimes not installed by default:
  *     $ npm install node-oom-heapdump
+ *
+ * You might want to signal processes to put them in debug mode, for completeness
+ *
+ * kill -s SIGUSR1 [pid]
  */
-exports.ofe = false;
+exports.ofemain = false;
+exports.ofesockets = false;
 
 /**
  * Pokemon of the Day - put a pokemon's name here to make it Pokemon of the Day
@@ -112,6 +142,17 @@ Y929lRybWEiKUr+4Yw2O1W0CAwEAAQ==
 `;
 
 /**
+ * routes - where Pokemon Showdown is hosted.
+ *   Don't change this setting - there aren't any other options right now
+ */
+exports.routes = {
+	root: 'pokemonshowdown.com',
+	client: 'play.pokemonshowdown.com',
+	dex: 'dex.pokemonshowdown.com',
+	replays: 'replay.pokemonshowdown.com',
+};
+
+/**
  * crashguardemail - if the server has been running for more than an hour
  *   and crashes, send an email using these settings, rather than locking down
  *   the server. Uncomment this definition if you want to use this feature;
@@ -145,6 +186,11 @@ exports.crashguardemail = null;
  *   Greek or Cyrillic.
  */
 exports.disablebasicnamefilter = false;
+
+/**
+ * allowrequestingties - enables the use of `/offerdraw` and `/acceptdraw`
+ */
+exports.allowrequestingties = true;
 
 /**
  * report joins and leaves - shows messages like "<USERNAME> joined"
@@ -215,18 +261,22 @@ exports.restrictLinks = false;
 
 /**
   * chat modchat - default minimum group for speaking in chatrooms; changeable with /modchat
+  * @type {false | string}
  */
 exports.chatmodchat = false;
 /**
  * battle modchat - default minimum group for speaking in battles; changeable with /modchat
+ * @type {false | string}
  */
 exports.battlemodchat = false;
 /**
  * pm modchat - minimum group for PMing other users, challenging other users
+ * @type {false | string}
  */
 exports.pmmodchat = false;
 /**
  * ladder modchat - minimum group for laddering
+ * @type {false | GroupSymbol}
  */
 exports.laddermodchat = false;
 
@@ -362,8 +412,29 @@ exports.replsocketmode = 0o600;
 exports.disablehotpatchall = false;
 
 /**
+ * forcedpublicprefixes - user ID prefixes which will be forced to battle publicly.
+ * Battles involving user IDs which begin with one of the prefixes configured here
+ * will be unaffected by various battle privacy commands such as /modjoin, /hideroom
+ * or /ionext.
+ * @type {string[]}
+ */
+exports.forcedpublicprefixes = [];
+
+/**
+ * startuphook - function to call when the server is fully initialized and ready
+ * to serve requests.
+ */
+exports.startuphook = function () {};
+
+
+/**
+ * chatlogreader - the search method used for searching chatlogs.
+ * @type {'ripgrep' | 'fs'}
+ */
+exports.chatlogreader = 'fs';
+/**
  * permissions and groups:
- *   Each entry in `grouplist' is a seperate group. Some of the members are "special"
+ *   Each entry in `grouplist` is a seperate group. Some of the members are "special"
  *     while the rest is just a normal permission.
  *   The order of the groups determines their ranking.
  *   The special members are as follows:
@@ -391,7 +462,8 @@ exports.disablehotpatchall = false;
  *                  group and target group are both in jurisdiction.
  *     - room<rank>: /roompromote to <rank> (eg. roomvoice)
  *     - makeroom: Create/delete chatrooms, and set modjoin/roomdesc/privacy
- *     - editroom: Set modjoin/privacy only for battles/groupchats
+ *     - editroom: Editing properties of rooms
+ *     - editprivacy: Set modjoin/privacy only for battles
  *     - ban: Banning and unbanning.
  *     - mute: Muting and unmuting.
  *     - lock: locking (ipmute) and unlocking.
@@ -434,7 +506,6 @@ exports.grouplist = [
 		roomdriver: true,
 		forcewin: true,
 		declare: true,
-		modchatall: true,
 		rangeban: true,
 		makeroom: true,
 		editroom: true,
@@ -443,6 +514,7 @@ exports.grouplist = [
 		globalonly: true,
 		gamemanagement: true,
 		exportinputlog: true,
+		editprivacy: true,
 	},
 	{
 		symbol: '#',
@@ -455,7 +527,7 @@ exports.grouplist = [
 		roomdriver: true,
 		editroom: true,
 		declare: true,
-		modchatall: true,
+		addhtml: true,
 		roomonly: true,
 		gamemanagement: true,
 	},
@@ -466,22 +538,11 @@ exports.grouplist = [
 		inherit: '@',
 		jurisdiction: 'u',
 		declare: true,
+		addhtml: true,
 		modchat: true,
 		roomonly: true,
 		gamemanagement: true,
 		joinbattle: true,
-	},
-	{
-		symbol: '\u2606',
-		id: "player",
-		name: "Player",
-		inherit: '+',
-		roomvoice: true,
-		modchat: true,
-		roomonly: true,
-		editroom: true,
-		joinbattle: true,
-		nooverride: true,
 	},
 	{
 		symbol: '*',
@@ -491,6 +552,7 @@ exports.grouplist = [
 		jurisdiction: 'u',
 		declare: true,
 		addhtml: true,
+		bypassafktimer: true,
 	},
 	{
 		symbol: '@',
@@ -499,7 +561,7 @@ exports.grouplist = [
 		inherit: '%',
 		jurisdiction: 'u',
 		ban: true,
-		modchat: true,
+		modchatall: true,
 		roomvoice: true,
 		forcerename: true,
 		ip: true,
@@ -528,6 +590,20 @@ exports.grouplist = [
 		jeopardy: true,
 		joinbattle: true,
 		minigame: true,
+		modchat: true,
+	},
+	{
+		symbol: '\u2606',
+		id: "player",
+		name: "Player",
+		inherit: '+',
+		roomvoice: true,
+		modchat: true,
+		roomonly: true,
+		joinbattle: true,
+		nooverride: true,
+		editprivacy: true,
+		exportinputlog: true,
 	},
 	{
 		symbol: '+',
@@ -539,7 +615,6 @@ exports.grouplist = [
 	},
 	{
 		symbol: ' ',
-		ip: 's',
 	},
 	{
 		name: 'Locked',
